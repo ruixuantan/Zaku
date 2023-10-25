@@ -1,37 +1,31 @@
 use super::types::{DataType, Value};
 
-pub trait ColumnVector {
-    fn get_type(&self) -> DataType;
-
-    fn get_value(&self, index: usize) -> Value;
-
-    fn size(&self) -> usize;
-}
-
-pub struct LiteralColumnVector {
+pub struct ColumnVector {
     datatype: DataType,
     values: Vec<Value>,
 }
 
-impl LiteralColumnVector {
-    fn new(datatype: DataType, values: Vec<Value>) -> LiteralColumnVector {
-        LiteralColumnVector { datatype, values }
+impl ColumnVector {
+    pub fn new(datatype: DataType, values: Vec<Value>) -> ColumnVector {
+        ColumnVector { datatype, values }
     }
-}
 
-impl ColumnVector for LiteralColumnVector {
-    fn get_type(&self) -> DataType {
+    pub fn get_type(&self) -> DataType {
         self.datatype.clone()
     }
 
-    fn get_value(&self, index: usize) -> Value {
+    pub fn get_value(&self, index: usize) -> Value {
         if index >= self.values.len() {
             panic!("Index out of bounds");
         }
         self.values[index].clone()
     }
 
-    fn size(&self) -> usize {
+    pub fn size(&self) -> usize {
         self.values.len()
+    }
+
+    pub fn add(&mut self, value: Value) {
+        self.values.push(value);
     }
 }
