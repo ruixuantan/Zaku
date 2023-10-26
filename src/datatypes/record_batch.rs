@@ -30,11 +30,11 @@ impl RecordBatch {
     }
 
     pub fn insert_row(&mut self, row: Vec<String>) -> Result<(), ZakuError> {
-        for (i, r) in row.iter().enumerate() {
+        row.iter().enumerate().try_for_each(|(i, r)| {
             let datatype = self.schema.get_datatype_from_index(&i)?;
             let val = Value::get_value_from_string_val(&r, datatype);
             self.columns[i].add(val);
-        }
-        Ok(())
+            Ok::<(), ZakuError>(())
+        })
     }
 }

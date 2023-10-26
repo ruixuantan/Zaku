@@ -1,6 +1,9 @@
-use std::{collections::HashMap, error::Error};
+use std::collections::HashMap;
 
-use crate::datatypes::{record_batch::RecordBatch, schema::Schema, types::DataType};
+use crate::{
+    datatypes::{record_batch::RecordBatch, schema::Schema, types::DataType},
+    error::ZakuError,
+};
 
 pub struct Datasource {
     path: String,
@@ -17,36 +20,45 @@ impl Datasource {
         }
     }
 
-    pub fn from_csv(path: &str) -> Result<Datasource, Box<dyn Error>> {
+    pub fn from_csv(path: &str) -> Result<Datasource, ZakuError> {
         let schema = Datasource::get_csv_schema(path)?;
         let record_batch = Datasource::load_csv_data(path, schema.clone())?;
         Ok(Datasource::new(path.to_string(), schema, record_batch))
     }
 
-    fn get_csv_schema(path: &str) -> Result<Schema, Box<dyn Error>> {
-        let mut rdr = csv::Reader::from_path(path)?;
+    fn get_csv_schema(path: &str) -> Result<Schema, ZakuError> {
+        let mut rdr = csv::Reader::from_path(path).map_err(|e| ZakuError::new(e.to_string()))?;
         let mut fields = Vec::new();
         let mut info = HashMap::new();
 
-        rdr.headers()?
+        rdr.headers()
+            .map_err(|e| ZakuError::new(e.to_string()))?
             .iter()
             .for_each(|h| fields.push(h.to_string()));
-        rdr.records().take(1).for_each(|r| {
-            r.unwrap().iter().enumerate().for_each(|(i, field)| {
-                let datatype = DataType::get_type_from_string_val(field);
-                info.insert(fields[i].to_string(), datatype);
-            });
-        });
+
+        rdr.records().take(1).try_for_each(|r| {
+            r.map_err(|e| ZakuError::new(e.to_string()))?
+                .iter()
+                .enumerate()
+                .for_each(|(i, field)| {
+                    let datatype = DataType::get_type_from_string_val(field);
+                    info.insert(fields[i].to_string(), datatype);
+                });
+            Ok::<(), ZakuError>(())
+        })?;
         Ok(Schema::new(fields, info))
     }
 
-    fn load_csv_data(path: &str, schema: Schema) -> Result<RecordBatch, Box<dyn Error>> {
-        let mut rdr = csv::Reader::from_path(path)?;
+    fn load_csv_data(path: &str, schema: Schema) -> Result<RecordBatch, ZakuError> {
+        let mut rdr = csv::Reader::from_path(path).map_err(|e| ZakuError::new(e.to_string()))?;
         let mut record_batch = RecordBatch::new(schema);
-        for result in rdr.records() {
-            let record = result?;
-            record_batch.insert_row(record.iter().map(|r| r.to_string()).collect())?;
-        }
+        rdr.records()
+            .map(|r| r.map_err(|e| ZakuError::new(e.to_string())))
+            .try_for_each(|r| {
+                let record = r?;
+                record_batch.insert_row(record.iter().map(|r| r.to_string()).collect())?;
+                Ok::<(), ZakuError>(())
+            })?;
         Ok(record_batch)
     }
 }
