@@ -1,3 +1,5 @@
+use crate::error::ZakuError;
+
 use super::{column_vector::ColumnVector, schema::Schema, types::Value};
 
 pub struct RecordBatch {
@@ -8,11 +10,10 @@ pub struct RecordBatch {
 impl RecordBatch {
     pub fn new(schema: Schema) -> RecordBatch {
         let mut columns = Vec::new();
-        for field in schema.get_fields() {
+        schema.get_fields().iter().for_each(|field| {
             let datatype = schema.get_datatype(&field);
-            let column = ColumnVector::new(datatype.clone(), Vec::new());
-            columns.push(column);
-        }
+            columns.push(ColumnVector::new(datatype.clone(), Vec::new()));
+        });
         RecordBatch { schema, columns }
     }
 
@@ -28,11 +29,12 @@ impl RecordBatch {
         self.columns.len()
     }
 
-    pub fn insert_row(&mut self, row: Vec<String>) {
+    pub fn insert_row(&mut self, row: Vec<String>) -> Result<(), ZakuError> {
         for (i, r) in row.iter().enumerate() {
-            let val =
-                Value::get_value_from_string_val(&r, &self.schema.get_datatype_from_index(&i));
+            let datatype = self.schema.get_datatype_from_index(&i)?;
+            let val = Value::get_value_from_string_val(&r, datatype);
             self.columns[i].add(val);
         }
+        Ok(())
     }
 }
