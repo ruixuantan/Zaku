@@ -17,8 +17,8 @@ impl RecordBatch {
         RecordBatch { schema, columns }
     }
 
-    pub fn get_schema(&self) -> Schema {
-        self.schema.clone()
+    pub fn get_schema(&self) -> &Schema {
+        &self.schema
     }
 
     pub fn row_count(&self) -> usize {

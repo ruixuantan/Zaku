@@ -10,15 +10,15 @@ impl ColumnVector {
         ColumnVector { datatype, values }
     }
 
-    pub fn get_type(&self) -> DataType {
-        self.datatype.clone()
+    pub fn get_type(&self) -> &DataType {
+        &self.datatype
     }
 
-    pub fn get_value(&self, index: usize) -> Value {
+    pub fn get_value(&self, index: usize) -> &Value {
         if index >= self.values.len() {
             panic!("Index out of bounds");
         }
-        self.values[index].clone()
+        &self.values[index]
     }
 
     pub fn size(&self) -> usize {
