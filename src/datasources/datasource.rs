@@ -90,6 +90,7 @@ mod test {
 
     #[test]
     fn test_load_csv_data() {
+        // TODO: Test each record, check if the values are correct
         let record_batch = Datasource::load_csv_data(
             &csv_test_file(),
             Datasource::get_csv_schema(&csv_test_file()).unwrap(),
