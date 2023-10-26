@@ -1,7 +1,9 @@
-use std::collections::HashMap;
-
 use crate::{
-    datatypes::{record_batch::RecordBatch, schema::Schema, types::DataType},
+    datatypes::{
+        record_batch::RecordBatch,
+        schema::{Field, Schema},
+        types::DataType,
+    },
     error::ZakuError,
 };
 
@@ -29,12 +31,11 @@ impl Datasource {
     fn get_csv_schema(path: &str) -> Result<Schema, ZakuError> {
         let mut rdr = csv::Reader::from_path(path).map_err(|e| ZakuError::new(e.to_string()))?;
         let mut fields = Vec::new();
-        let mut info = HashMap::new();
 
         rdr.headers()
             .map_err(|e| ZakuError::new(e.to_string()))?
             .iter()
-            .for_each(|h| fields.push(h.to_string()));
+            .for_each(|h| fields.push(Field::new(h.to_string(), DataType::Boolean)));
 
         rdr.records().take(1).try_for_each(|r| {
             r.map_err(|e| ZakuError::new(e.to_string()))?
@@ -42,11 +43,11 @@ impl Datasource {
                 .enumerate()
                 .for_each(|(i, field)| {
                     let datatype = DataType::get_type_from_string_val(field);
-                    info.insert(fields[i].to_string(), datatype);
+                    fields[i].set_datatype(datatype);
                 });
             Ok::<(), ZakuError>(())
         })?;
-        Ok(Schema::new(fields, info))
+        Ok(Schema::new(fields))
     }
 
     fn load_csv_data(path: &str, schema: Schema) -> Result<RecordBatch, ZakuError> {
@@ -65,6 +66,8 @@ impl Datasource {
 
 #[cfg(test)]
 mod test {
+    use crate::datatypes::{schema::Field, types::DataType};
+
     use super::Datasource;
 
     fn csv_test_file() -> String {
@@ -76,27 +79,13 @@ mod test {
         let schema = Datasource::get_csv_schema(&csv_test_file()).unwrap();
         assert_eq!(
             schema.get_fields(),
-            &vec!["id", "product_name", "is_available", "price", "quantity"]
-        );
-        assert_eq!(
-            schema.get_datatype(&"id".to_string()),
-            &super::DataType::Integer
-        );
-        assert_eq!(
-            schema.get_datatype(&"product_name".to_string()),
-            &super::DataType::Text
-        );
-        assert_eq!(
-            schema.get_datatype(&"is_available".to_string()),
-            &super::DataType::Boolean
-        );
-        assert_eq!(
-            schema.get_datatype(&"price".to_string()),
-            &super::DataType::Float
-        );
-        assert_eq!(
-            schema.get_datatype(&"quantity".to_string()),
-            &super::DataType::Integer
+            &vec![
+                Field::new("id".to_string(), DataType::Integer),
+                Field::new("product_name".to_string(), DataType::Text),
+                Field::new("is_available".to_string(), DataType::Boolean),
+                Field::new("price".to_string(), DataType::Float),
+                Field::new("quantity".to_string(), DataType::Integer)
+            ]
         );
     }
 

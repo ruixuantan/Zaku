@@ -11,8 +11,7 @@ impl RecordBatch {
     pub fn new(schema: Schema) -> RecordBatch {
         let mut columns = Vec::new();
         schema.get_fields().iter().for_each(|field| {
-            let datatype = schema.get_datatype(&field);
-            columns.push(ColumnVector::new(datatype.clone(), Vec::new()));
+            columns.push(ColumnVector::new(field.get_datatype().clone(), Vec::new()));
         });
         RecordBatch { schema, columns }
     }
