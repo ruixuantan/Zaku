@@ -1,0 +1,23 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+jobs:
+  unit_test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Update local toolchain
+        run: |
+          rustup update
+          rustup install nightly
+      - name: Toolchain info
+        run: |
+          cargo --version --verbose
+          rustc --version
+      - name: Run unit test
+        run: cargo test
