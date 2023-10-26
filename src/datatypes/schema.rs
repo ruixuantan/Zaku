@@ -57,6 +57,17 @@ impl Schema {
         }
         Ok(&self.fields[*index].datatype)
     }
+
+    pub fn select(&self, fields: &Vec<String>) -> Schema {
+        let mut selected_fields = Vec::new();
+        fields.iter().for_each(|f| {
+            // Ignore fields that don't exist
+            if let Ok(field) = self.get_field(f) {
+                selected_fields.push(field);
+            }
+        });
+        Schema::new(selected_fields)
+    }
 }
 
 #[cfg(test)]

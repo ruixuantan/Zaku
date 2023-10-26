@@ -1,12 +1,11 @@
-use crate::{
-    datatypes::{schema::Field, types::DataType},
-    error::ZakuError,
-};
+use std::sync::Arc;
+
+use crate::datatypes::{schema::Field, types::DataType};
 
 use super::logical_plan::LogicalPlan;
 
 pub trait LogicalExpr {
-    fn to_field(&self, input: &dyn LogicalPlan) -> Result<Field, ZakuError>;
+    fn to_field(&self, input: &Arc<dyn LogicalPlan>) -> Field;
 
     fn to_string(&self) -> String;
 }
@@ -22,8 +21,11 @@ impl Column {
 }
 
 impl LogicalExpr for Column {
-    fn to_field(&self, input: &dyn LogicalPlan) -> Result<Field, ZakuError> {
-        input.schema().get_field(&self.name)
+    fn to_field(&self, input: &Arc<dyn LogicalPlan>) -> Field {
+        input
+            .schema()
+            .get_field(&self.name)
+            .expect(format!("Field {} not found", self.name).as_str())
     }
 
     fn to_string(&self) -> String {
@@ -42,8 +44,8 @@ impl LiteralText {
 }
 
 impl LogicalExpr for LiteralText {
-    fn to_field(&self, _input: &dyn LogicalPlan) -> Result<Field, ZakuError> {
-        Ok(Field::new(self.value.clone(), DataType::Text))
+    fn to_field(&self, _input: &Arc<dyn LogicalPlan>) -> Field {
+        Field::new(self.value.clone(), DataType::Text)
     }
 
     fn to_string(&self) -> String {
@@ -62,8 +64,8 @@ impl LiteralInteger {
 }
 
 impl LogicalExpr for LiteralInteger {
-    fn to_field(&self, _input: &dyn LogicalPlan) -> Result<Field, ZakuError> {
-        Ok(Field::new(self.value.to_string(), DataType::Integer))
+    fn to_field(&self, _input: &Arc<dyn LogicalPlan>) -> Field {
+        Field::new(self.value.to_string(), DataType::Integer)
     }
 
     fn to_string(&self) -> String {
@@ -82,8 +84,8 @@ impl LiteralFloat {
 }
 
 impl LogicalExpr for LiteralFloat {
-    fn to_field(&self, _input: &dyn LogicalPlan) -> Result<Field, ZakuError> {
-        Ok(Field::new(self.value.to_string(), DataType::Float))
+    fn to_field(&self, _input: &Arc<dyn LogicalPlan>) -> Field {
+        Field::new(self.value.to_string(), DataType::Float)
     }
 
     fn to_string(&self) -> String {
@@ -102,8 +104,8 @@ impl LiteralBoolean {
 }
 
 impl LogicalExpr for LiteralBoolean {
-    fn to_field(&self, _input: &dyn LogicalPlan) -> Result<Field, ZakuError> {
-        Ok(Field::new(self.value.to_string(), DataType::Boolean))
+    fn to_field(&self, _input: &Arc<dyn LogicalPlan>) -> Field {
+        Field::new(self.value.to_string(), DataType::Boolean)
     }
 
     fn to_string(&self) -> String {

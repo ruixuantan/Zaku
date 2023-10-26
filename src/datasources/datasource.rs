@@ -28,6 +28,10 @@ impl Datasource {
         Ok(Datasource::new(path.to_string(), schema, record_batch))
     }
 
+    pub fn get_schema(&self) -> &Schema {
+        &self.schema
+    }
+
     fn get_csv_schema(path: &str) -> Result<Schema, ZakuError> {
         let mut rdr = csv::Reader::from_path(path).map_err(|e| ZakuError::new(e.to_string()))?;
         let mut fields = Vec::new();
