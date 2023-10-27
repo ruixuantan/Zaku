@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
-use crate::datatypes::{schema::Field, types::DataType};
+use crate::{
+    datatypes::schema::Field,
+    physical_plans::physical_expr::{ColumnExpr, PhysicalExpr},
+};
 
 use super::logical_plan::LogicalPlan;
 
@@ -8,6 +11,8 @@ pub trait LogicalExpr {
     fn to_field(&self, input: &Arc<dyn LogicalPlan>) -> Field;
 
     fn to_string(&self) -> String;
+
+    fn to_physical_expr(&self, input: &Arc<dyn LogicalPlan>) -> Arc<dyn PhysicalExpr>;
 }
 
 pub struct Column {
@@ -31,84 +36,92 @@ impl LogicalExpr for Column {
     fn to_string(&self) -> String {
         self.name.clone()
     }
-}
 
-pub struct LiteralText {
-    value: String,
-}
-
-impl LiteralText {
-    pub fn new(value: String) -> LiteralText {
-        LiteralText { value }
+    fn to_physical_expr(&self, input: &Arc<dyn LogicalPlan>) -> Arc<dyn PhysicalExpr> {
+        let index = input
+            .schema()
+            .get_index(&self.name)
+            .expect("Field does not exist");
+        Arc::new(ColumnExpr::new(index))
     }
 }
 
-impl LogicalExpr for LiteralText {
-    fn to_field(&self, _input: &Arc<dyn LogicalPlan>) -> Field {
-        Field::new(self.value.clone(), DataType::Text)
-    }
+// pub struct LiteralText {
+//     value: String,
+// }
 
-    fn to_string(&self) -> String {
-        self.value.clone()
-    }
-}
+// impl LiteralText {
+//     pub fn new(value: String) -> LiteralText {
+//         LiteralText { value }
+//     }
+// }
 
-pub struct LiteralInteger {
-    value: i32,
-}
+// impl LogicalExpr for LiteralText {
+//     fn to_field(&self, _input: &Arc<dyn LogicalPlan>) -> Field {
+//         Field::new(self.value.clone(), DataType::Text)
+//     }
 
-impl LiteralInteger {
-    pub fn new(value: i32) -> LiteralInteger {
-        LiteralInteger { value }
-    }
-}
+//     fn to_string(&self) -> String {
+//         self.value.clone()
+//     }
+// }
 
-impl LogicalExpr for LiteralInteger {
-    fn to_field(&self, _input: &Arc<dyn LogicalPlan>) -> Field {
-        Field::new(self.value.to_string(), DataType::Integer)
-    }
+// pub struct LiteralInteger {
+//     value: i32,
+// }
 
-    fn to_string(&self) -> String {
-        self.value.to_string()
-    }
-}
+// impl LiteralInteger {
+//     pub fn new(value: i32) -> LiteralInteger {
+//         LiteralInteger { value }
+//     }
+// }
 
-pub struct LiteralFloat {
-    value: f32,
-}
+// impl LogicalExpr for LiteralInteger {
+//     fn to_field(&self, _input: &Arc<dyn LogicalPlan>) -> Field {
+//         Field::new(self.value.to_string(), DataType::Integer)
+//     }
 
-impl LiteralFloat {
-    pub fn new(value: f32) -> LiteralFloat {
-        LiteralFloat { value }
-    }
-}
+//     fn to_string(&self) -> String {
+//         self.value.to_string()
+//     }
+// }
 
-impl LogicalExpr for LiteralFloat {
-    fn to_field(&self, _input: &Arc<dyn LogicalPlan>) -> Field {
-        Field::new(self.value.to_string(), DataType::Float)
-    }
+// pub struct LiteralFloat {
+//     value: f32,
+// }
 
-    fn to_string(&self) -> String {
-        self.value.to_string()
-    }
-}
+// impl LiteralFloat {
+//     pub fn new(value: f32) -> LiteralFloat {
+//         LiteralFloat { value }
+//     }
+// }
 
-pub struct LiteralBoolean {
-    value: bool,
-}
+// impl LogicalExpr for LiteralFloat {
+//     fn to_field(&self, _input: &Arc<dyn LogicalPlan>) -> Field {
+//         Field::new(self.value.to_string(), DataType::Float)
+//     }
 
-impl LiteralBoolean {
-    pub fn new(value: bool) -> LiteralBoolean {
-        LiteralBoolean { value }
-    }
-}
+//     fn to_string(&self) -> String {
+//         self.value.to_string()
+//     }
+// }
 
-impl LogicalExpr for LiteralBoolean {
-    fn to_field(&self, _input: &Arc<dyn LogicalPlan>) -> Field {
-        Field::new(self.value.to_string(), DataType::Boolean)
-    }
+// pub struct LiteralBoolean {
+//     value: bool,
+// }
 
-    fn to_string(&self) -> String {
-        self.value.to_string()
-    }
-}
+// impl LiteralBoolean {
+//     pub fn new(value: bool) -> LiteralBoolean {
+//         LiteralBoolean { value }
+//     }
+// }
+
+// impl LogicalExpr for LiteralBoolean {
+//     fn to_field(&self, _input: &Arc<dyn LogicalPlan>) -> Field {
+//         Field::new(self.value.to_string(), DataType::Boolean)
+//     }
+
+//     fn to_string(&self) -> String {
+//         self.value.to_string()
+//     }
+// }

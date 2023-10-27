@@ -1,6 +1,10 @@
 use std::sync::Arc;
 
-use crate::{datasources::datasource::Datasource, datatypes::schema::Schema};
+use crate::{
+    datasources::datasource::Datasource,
+    datatypes::schema::Schema,
+    physical_plans::physical_plan::{PhysicalPlan, ProjectionExec, ScanExec},
+};
 
 use super::logical_expr::LogicalExpr;
 
@@ -10,22 +14,20 @@ pub trait LogicalPlan {
     fn children(&self) -> Vec<Arc<dyn LogicalPlan>>;
 
     fn to_string(&self) -> String;
+
+    fn to_physical_plan(&self) -> Arc<dyn PhysicalPlan>;
 }
 
 pub struct Scan {
-    schema: Schema,
-    path: String,
-    projection: Vec<String>,
+    pub datasource: Datasource,
+    pub path: String,
+    pub projection: Vec<String>,
 }
 
 impl Scan {
     pub fn new(datasource: Datasource, path: String, projection: Vec<String>) -> Scan {
-        let mut schema = datasource.schema().clone();
-        if !projection.is_empty() {
-            schema = schema.select(&projection);
-        }
         Scan {
-            schema,
+            datasource,
             path,
             projection,
         }
@@ -34,7 +36,11 @@ impl Scan {
 
 impl LogicalPlan for Scan {
     fn schema(&self) -> Schema {
-        self.schema.clone()
+        let mut schema = self.datasource.schema().clone();
+        if !self.projection.is_empty() {
+            schema = schema.select(&self.projection);
+        }
+        schema
     }
 
     fn children(&self) -> Vec<Arc<dyn LogicalPlan>> {
@@ -47,6 +53,13 @@ impl LogicalPlan for Scan {
         } else {
             return format!("Scan: {} | {}", self.path, self.projection.join(", "));
         }
+    }
+
+    fn to_physical_plan(&self) -> Arc<dyn PhysicalPlan> {
+        Arc::new(ScanExec::new(
+            self.datasource.clone(),
+            self.projection.clone(),
+        ))
     }
 }
 
@@ -85,5 +98,25 @@ impl LogicalPlan for Projection {
                 .collect::<Vec<String>>()
                 .join(", ")
         )
+    }
+
+    fn to_physical_plan(&self) -> Arc<dyn PhysicalPlan> {
+        let physical_plan = self.logical_plan.to_physical_plan();
+        let projection_schema = Schema::new(
+            self.expr
+                .iter()
+                .map(|e| e.to_field(&self.logical_plan))
+                .collect(),
+        );
+        let physical_expr = self
+            .expr
+            .iter()
+            .map(|e| e.to_physical_expr(&self.logical_plan))
+            .collect();
+        Arc::new(ProjectionExec::new(
+            projection_schema,
+            physical_plan,
+            physical_expr,
+        ))
     }
 }

@@ -39,6 +39,13 @@ impl Schema {
             .ok_or(ZakuError::new("Field not found".to_string()))
     }
 
+    pub fn get_index(&self, field: &String) -> Result<usize, ZakuError> {
+        self.fields
+            .iter()
+            .position(|f| &f.name == field)
+            .ok_or(ZakuError::new("Field not found".to_string()))
+    }
+
     pub fn get_fields(&self) -> &Vec<Field> {
         &self.fields
     }

@@ -7,6 +7,7 @@ use crate::{
     error::ZakuError,
 };
 
+#[derive(Clone)]
 pub struct Datasource {
     path: String,
     schema: Schema,
