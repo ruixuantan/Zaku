@@ -2,13 +2,18 @@ use crate::error::ZakuError;
 
 use super::{column_vector::ColumnVector, schema::Schema, types::Value};
 
+#[derive(Clone)]
 pub struct RecordBatch {
     schema: Schema,
     columns: Vec<ColumnVector>,
 }
 
 impl RecordBatch {
-    pub fn new(schema: Schema) -> RecordBatch {
+    pub fn new(schema: Schema, columns: Vec<ColumnVector>) -> RecordBatch {
+        RecordBatch { schema, columns }
+    }
+
+    pub fn from_schema(schema: Schema) -> RecordBatch {
         let mut columns = Vec::new();
         schema.get_fields().iter().for_each(|field| {
             columns.push(ColumnVector::new(field.get_datatype().clone(), Vec::new()));
@@ -35,5 +40,12 @@ impl RecordBatch {
             self.columns[i].add(val);
             Ok::<(), ZakuError>(())
         })
+    }
+
+    pub fn get(&self, index: &usize) -> Result<ColumnVector, ZakuError> {
+        if index >= &self.column_count() {
+            return Err(ZakuError::new("Index out of bounds".to_string()));
+        }
+        Ok(self.columns[*index].clone())
     }
 }

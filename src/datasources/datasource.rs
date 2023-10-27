@@ -28,8 +28,16 @@ impl Datasource {
         Ok(Datasource::new(path.to_string(), schema, record_batch))
     }
 
-    pub fn get_schema(&self) -> &Schema {
+    pub fn schema(&self) -> &Schema {
         &self.schema
+    }
+
+    pub fn path(&self) -> &String {
+        &self.path
+    }
+
+    pub fn record_batch(&self) -> &RecordBatch {
+        &self.record_batch
     }
 
     fn get_csv_schema(path: &str) -> Result<Schema, ZakuError> {
@@ -56,7 +64,7 @@ impl Datasource {
 
     fn load_csv_data(path: &str, schema: Schema) -> Result<RecordBatch, ZakuError> {
         let mut rdr = csv::Reader::from_path(path).map_err(|e| ZakuError::new(e.to_string()))?;
-        let mut record_batch = RecordBatch::new(schema);
+        let mut record_batch = RecordBatch::from_schema(schema);
         rdr.records()
             .map(|r| r.map_err(|e| ZakuError::new(e.to_string())))
             .try_for_each(|r| {

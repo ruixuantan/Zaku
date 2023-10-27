@@ -20,7 +20,7 @@ pub struct Scan {
 
 impl Scan {
     pub fn new(datasource: Datasource, path: String, projection: Vec<String>) -> Scan {
-        let mut schema = datasource.get_schema().clone();
+        let mut schema = datasource.schema().clone();
         if !projection.is_empty() {
             schema = schema.select(&projection);
         }
