@@ -15,6 +15,10 @@ impl ColumnVector {
         &self.datatype
     }
 
+    pub fn values(&self) -> &Vec<Value> {
+        &self.values
+    }
+
     pub fn get_value(&self, index: usize) -> &Value {
         if index >= self.values.len() {
             panic!("Index out of bounds");

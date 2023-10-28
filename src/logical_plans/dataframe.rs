@@ -5,6 +5,7 @@ use super::{
     logical_plan::{LogicalPlan, Projection, Scan},
 };
 
+#[derive(Debug, Clone)]
 pub struct Dataframe {
     plan: LogicalPlan,
 }

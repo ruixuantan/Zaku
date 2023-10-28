@@ -141,7 +141,7 @@ mod test {
         assert_eq!(record_batch.row_count(), 5);
         assert_eq!(record_batch.column_count(), 5);
 
-        let cols = record_batch.get_columns();
+        let cols = record_batch.columns();
         let ex_cols = vec![
             Arc::new(ColumnVector::new(
                 DataType::Integer,

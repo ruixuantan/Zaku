@@ -12,6 +12,10 @@ impl Field {
         Field { name, datatype }
     }
 
+    pub fn name(&self) -> &String {
+        &self.name
+    }
+
     pub fn datatype(&self) -> &DataType {
         &self.datatype
     }

@@ -15,11 +15,11 @@ impl RecordBatch {
         RecordBatch { schema, columns }
     }
 
-    pub fn get_schema(&self) -> &Schema {
+    pub fn schema(&self) -> &Schema {
         &self.schema
     }
 
-    pub fn get_columns(&self) -> &Vec<Arc<ColumnVector>> {
+    pub fn columns(&self) -> &Vec<Arc<ColumnVector>> {
         &self.columns
     }
 

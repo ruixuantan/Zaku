@@ -47,6 +47,15 @@ impl Value {
             DataType::Text => Value::Text(val.to_string()),
         }
     }
+
+    pub fn to_string(&self) -> String {
+        match self {
+            Value::Integer(val) => val.to_string(),
+            Value::Float(val) => val.to_string(),
+            Value::Boolean(val) => val.to_string(),
+            Value::Text(val) => val.to_string(),
+        }
+    }
 }
 
 #[cfg(test)]
