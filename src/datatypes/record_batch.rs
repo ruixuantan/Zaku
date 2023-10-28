@@ -4,7 +4,7 @@ use crate::error::ZakuError;
 
 use super::{column_vector::ColumnVector, schema::Schema};
 
-#[derive(Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct RecordBatch {
     schema: Schema,
     columns: Vec<Arc<ColumnVector>>,
@@ -15,19 +15,12 @@ impl RecordBatch {
         RecordBatch { schema, columns }
     }
 
-    pub fn from_schema(schema: Schema) -> RecordBatch {
-        let mut columns = Vec::new();
-        schema.fields().iter().for_each(|field| {
-            columns.push(Arc::new(ColumnVector::new(
-                field.datatype().clone(),
-                Vec::new(),
-            )));
-        });
-        RecordBatch::new(schema, columns)
-    }
-
     pub fn get_schema(&self) -> &Schema {
         &self.schema
+    }
+
+    pub fn get_columns(&self) -> &Vec<Arc<ColumnVector>> {
+        &self.columns
     }
 
     pub fn row_count(&self) -> usize {

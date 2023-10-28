@@ -1,6 +1,6 @@
 use super::types::{DataType, Value};
 
-#[derive(Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct ColumnVector {
     datatype: DataType,
     values: Vec<Value>,

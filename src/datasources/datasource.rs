@@ -101,7 +101,13 @@ impl Datasource {
 
 #[cfg(test)]
 mod test {
-    use crate::datatypes::{schema::Field, types::DataType};
+    use std::{sync::Arc, vec};
+
+    use crate::datatypes::{
+        column_vector::ColumnVector,
+        schema::Field,
+        types::{DataType, Value},
+    };
 
     use super::Datasource;
 
@@ -134,5 +140,51 @@ mod test {
         .unwrap();
         assert_eq!(record_batch.row_count(), 5);
         assert_eq!(record_batch.column_count(), 5);
+
+        let cols = record_batch.get_columns();
+        let ex_cols = vec![
+            Arc::new(ColumnVector::new(
+                DataType::Integer,
+                vec![1, 2, 3, 4, 5]
+                    .iter()
+                    .map(|i| Value::Integer(*i))
+                    .collect(),
+            )),
+            Arc::new(ColumnVector::new(
+                DataType::Text,
+                vec![
+                    "toothbrush",
+                    "toothpaste",
+                    "shampoo",
+                    "soap",
+                    "shaving cream",
+                ]
+                .iter()
+                .map(|s| Value::Text(s.to_string()))
+                .collect(),
+            )),
+            Arc::new(ColumnVector::new(
+                DataType::Boolean,
+                vec![true, true, true, false, true]
+                    .iter()
+                    .map(|b| Value::Boolean(*b))
+                    .collect(),
+            )),
+            Arc::new(ColumnVector::new(
+                DataType::Float,
+                vec![5.00, 10.00, 15.50, 2.00, 20.00]
+                    .iter()
+                    .map(|f| Value::Float(*f))
+                    .collect(),
+            )),
+            Arc::new(ColumnVector::new(
+                DataType::Integer,
+                vec![100, 50, 25, 0, 10]
+                    .iter()
+                    .map(|i| Value::Integer(*i))
+                    .collect(),
+            )),
+        ];
+        assert_eq!(cols, &ex_cols);
     }
 }

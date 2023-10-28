@@ -21,7 +21,7 @@ impl Field {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Schema {
     fields: Vec<Field>,
 }
@@ -82,15 +82,19 @@ mod test {
     use super::Schema;
     use crate::datatypes::types::DataType;
 
-    #[test]
-    fn test_get_datatype_from_index() {
+    fn get_schema() -> Schema {
         let fields = vec![
             Field::new("id".to_string(), DataType::Integer),
             Field::new("name".to_string(), DataType::Text),
             Field::new("age".to_string(), DataType::Integer),
             Field::new("weight".to_string(), DataType::Float),
         ];
-        let schema = Schema::new(fields);
+        Schema::new(fields)
+    }
+
+    #[test]
+    fn test_get_datatype_from_index() {
+        let schema = get_schema();
         assert_eq!(
             schema.get_datatype_from_index(&0).unwrap(),
             &DataType::Integer
@@ -104,5 +108,17 @@ mod test {
             schema.get_datatype_from_index(&3).unwrap(),
             &DataType::Float
         );
+    }
+
+    #[test]
+    fn test_select() {
+        let schema = get_schema();
+        let selected_schema = schema.select(&vec!["id".to_string(), "name".to_string()]);
+        let ex_fields = vec![
+            Field::new("id".to_string(), DataType::Integer),
+            Field::new("name".to_string(), DataType::Text),
+        ];
+        let ex_schema = Schema::new(ex_fields);
+        assert_eq!(selected_schema, ex_schema);
     }
 }
