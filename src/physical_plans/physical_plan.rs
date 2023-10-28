@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use crate::{
     datasources::datasource::Datasource,
     datatypes::{record_batch::RecordBatch, schema::Schema},
@@ -7,16 +5,43 @@ use crate::{
 
 use super::physical_expr::PhysicalExpr;
 
-pub trait PhysicalPlan {
-    fn schema(&self) -> Schema;
-
-    fn execute(&self) -> RecordBatch;
-
-    fn children(&self) -> Vec<Arc<dyn PhysicalPlan>>;
-
-    fn to_string(&self) -> String;
+#[derive(Clone)]
+pub enum PhysicalPlan {
+    Scan(ScanExec),
+    Projection(ProjectionExec),
 }
 
+impl PhysicalPlan {
+    pub fn schema(&self) -> Schema {
+        match self {
+            PhysicalPlan::Scan(scan) => scan.schema(),
+            PhysicalPlan::Projection(projection) => projection.schema(),
+        }
+    }
+
+    pub fn execute(&self) -> RecordBatch {
+        match self {
+            PhysicalPlan::Scan(scan) => scan.execute(),
+            PhysicalPlan::Projection(projection) => projection.execute(),
+        }
+    }
+
+    pub fn children(&self) -> Vec<PhysicalPlan> {
+        match self {
+            PhysicalPlan::Scan(scan) => scan.children(),
+            PhysicalPlan::Projection(projection) => projection.children(),
+        }
+    }
+
+    pub fn to_string(&self) -> String {
+        match self {
+            PhysicalPlan::Scan(scan) => scan.to_string(),
+            PhysicalPlan::Projection(projection) => projection.to_string(),
+        }
+    }
+}
+
+#[derive(Clone)]
 pub struct ScanExec {
     datasource: Datasource,
     projection: Vec<String>,
@@ -29,9 +54,7 @@ impl ScanExec {
             projection,
         }
     }
-}
 
-impl PhysicalPlan for ScanExec {
     fn schema(&self) -> Schema {
         self.datasource.schema().select(&self.projection)
     }
@@ -40,7 +63,7 @@ impl PhysicalPlan for ScanExec {
         self.datasource.record_batch().clone()
     }
 
-    fn children(&self) -> Vec<Arc<dyn PhysicalPlan>> {
+    fn children(&self) -> Vec<PhysicalPlan> {
         Vec::new()
     }
 
@@ -57,27 +80,26 @@ impl PhysicalPlan for ScanExec {
     }
 }
 
+#[derive(Clone)]
 pub struct ProjectionExec {
     schema: Schema,
-    physical_plan: Arc<dyn PhysicalPlan>,
-    expr: Vec<Arc<dyn PhysicalExpr>>,
+    physical_plan: Box<PhysicalPlan>,
+    expr: Vec<PhysicalExpr>,
 }
 
 impl ProjectionExec {
     pub fn new(
         schema: Schema,
-        physical_plan: Arc<dyn PhysicalPlan>,
-        expr: Vec<Arc<dyn PhysicalExpr>>,
+        physical_plan: PhysicalPlan,
+        expr: Vec<PhysicalExpr>,
     ) -> ProjectionExec {
         ProjectionExec {
             schema,
-            physical_plan,
+            physical_plan: Box::new(physical_plan),
             expr,
         }
     }
-}
 
-impl PhysicalPlan for ProjectionExec {
     fn schema(&self) -> Schema {
         self.schema.clone()
     }
@@ -92,8 +114,8 @@ impl PhysicalPlan for ProjectionExec {
         RecordBatch::new(self.schema.clone(), columns)
     }
 
-    fn children(&self) -> Vec<Arc<dyn PhysicalPlan>> {
-        vec![self.physical_plan.clone()]
+    fn children(&self) -> Vec<PhysicalPlan> {
+        vec![*self.physical_plan.clone()]
     }
 
     fn to_string(&self) -> String {

@@ -1,49 +1,44 @@
-use std::sync::Arc;
-
 use crate::{
-    datatypes::schema::Field,
-    physical_plans::physical_expr::{ColumnExpr, PhysicalExpr},
+    datatypes::schema::Field, error::ZakuError, physical_plans::physical_expr::PhysicalExpr,
 };
 
 use super::logical_plan::LogicalPlan;
 
-pub trait LogicalExpr {
-    fn to_field(&self, input: &Arc<dyn LogicalPlan>) -> Field;
-
-    fn to_string(&self) -> String;
-
-    fn to_physical_expr(&self, input: &Arc<dyn LogicalPlan>) -> Arc<dyn PhysicalExpr>;
+#[derive(Clone)]
+pub enum LogicalExpr {
+    Column(String),
 }
 
-pub struct Column {
-    name: String,
-}
+impl LogicalExpr {
+    pub fn to_field(&self, input: &LogicalPlan) -> Result<Field, ZakuError> {
+        match self {
+            LogicalExpr::Column(name) => column_to_field(input, name),
+        }
+    }
 
-impl Column {
-    pub fn new(name: String) -> Column {
-        Column { name }
+    pub fn to_string(&self) -> String {
+        match self {
+            LogicalExpr::Column(name) => name.clone(),
+        }
+    }
+
+    pub fn to_physical_expr(&self, input: &LogicalPlan) -> Result<PhysicalExpr, ZakuError> {
+        match self {
+            LogicalExpr::Column(name) => column_to_physical_expr(input, name),
+        }
     }
 }
 
-impl LogicalExpr for Column {
-    fn to_field(&self, input: &Arc<dyn LogicalPlan>) -> Field {
-        input
-            .schema()
-            .get_field(&self.name)
-            .expect(format!("Field {} not found", self.name).as_str())
-    }
+fn column_to_field(input: &LogicalPlan, name: &String) -> Result<Field, ZakuError> {
+    input.schema().get_field(name)
+}
 
-    fn to_string(&self) -> String {
-        self.name.clone()
-    }
-
-    fn to_physical_expr(&self, input: &Arc<dyn LogicalPlan>) -> Arc<dyn PhysicalExpr> {
-        let index = input
-            .schema()
-            .get_index(&self.name)
-            .expect("Field does not exist");
-        Arc::new(ColumnExpr::new(index))
-    }
+fn column_to_physical_expr(input: &LogicalPlan, name: &String) -> Result<PhysicalExpr, ZakuError> {
+    let index = input
+        .schema()
+        .get_index(name)
+        .expect(format!("Expected column {} to be in schema", name).as_str());
+    Ok(PhysicalExpr::ColumnExpr(index))
 }
 
 // pub struct LiteralText {

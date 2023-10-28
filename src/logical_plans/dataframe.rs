@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use crate::{datasources::datasource::Datasource, datatypes::schema::Schema, error::ZakuError};
 
 use super::{
@@ -8,11 +6,11 @@ use super::{
 };
 
 pub struct Dataframe {
-    plan: Arc<dyn LogicalPlan>,
+    plan: LogicalPlan,
 }
 
 impl Dataframe {
-    pub fn new(plan: Arc<dyn LogicalPlan>) -> Dataframe {
+    pub fn new(plan: LogicalPlan) -> Dataframe {
         Dataframe { plan }
     }
 
@@ -20,20 +18,23 @@ impl Dataframe {
         self.plan.schema()
     }
 
-    pub fn logical_plan(&self) -> &Arc<dyn LogicalPlan> {
-        &self.plan
+    pub fn logical_plan(&self) -> LogicalPlan {
+        self.plan.clone()
     }
 
     pub fn from_csv(filename: &str) -> Result<Dataframe, ZakuError> {
         let datasource = Datasource::from_csv(filename)?;
-        Ok(Dataframe::new(Arc::new(Scan::new(
+        Ok(Dataframe::new(LogicalPlan::Scan(Scan::new(
             datasource,
             filename.to_string(),
             Vec::new(),
         ))))
     }
 
-    pub fn projection(&self, expr: Vec<Arc<dyn LogicalExpr>>) -> Dataframe {
-        Dataframe::new(Arc::new(Projection::new(self.plan.clone(), expr)))
+    pub fn projection(&self, expr: Vec<LogicalExpr>) -> Result<Dataframe, ZakuError> {
+        Ok(Dataframe::new(LogicalPlan::Projection(Projection::new(
+            self.plan.clone(),
+            expr,
+        )?)))
     }
 }

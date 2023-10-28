@@ -1,10 +1,8 @@
-use std::sync::Arc;
-
 use sqlparser::{ast::Expr, ast::Select, ast::SelectItem, ast::Statement};
 
 use crate::{
     error::ZakuError,
-    logical_plans::{dataframe::Dataframe, logical_expr::Column},
+    logical_plans::{dataframe::Dataframe, logical_expr::LogicalExpr},
 };
 
 fn parse_select(sql: &str) -> Result<Box<Select>, ZakuError> {
@@ -23,12 +21,13 @@ fn parse_select(sql: &str) -> Result<Box<Select>, ZakuError> {
     Ok(select_stmt)
 }
 
-fn create_df(select: &Box<Select>, df: Dataframe) -> Dataframe {
+fn create_df(select: &Box<Select>, dataframe: Dataframe) -> Result<Dataframe, ZakuError> {
+    let mut df = dataframe;
     let mut projections = vec![];
     select.projection.iter().for_each(|item| match item {
         SelectItem::UnnamedExpr(expr) => match expr {
             Expr::Identifier(ident) => {
-                projections.push(Arc::new(Column::new(ident.value.clone())));
+                projections.push(LogicalExpr::Column(ident.value.clone()));
             }
             _ => (),
         },
@@ -36,15 +35,15 @@ fn create_df(select: &Box<Select>, df: Dataframe) -> Dataframe {
         _ => (),
     });
 
-    // if projections.len() > 0 {
-    //     df.projection(projections);
-    // }
+    if projections.len() > 0 {
+        df = df.projection(projections)?;
+    }
 
-    df
+    Ok(df)
 }
 
 pub fn parse(sql: &str, df: Dataframe) -> Result<Dataframe, ZakuError> {
     let select = parse_select(sql)?;
-    let df = create_df(&select, df);
+    let df = create_df(&select, df)?;
     Ok(df)
 }

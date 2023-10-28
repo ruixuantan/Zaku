@@ -1,27 +1,22 @@
 use crate::datatypes::{column_vector::ColumnVector, record_batch::RecordBatch};
 
-pub trait PhysicalExpr {
-    fn evaluate(&self, batch: &RecordBatch) -> ColumnVector;
-
-    fn to_string(&self) -> String;
+#[derive(Clone)]
+pub enum PhysicalExpr {
+    ColumnExpr(usize),
 }
 
-pub struct ColumnExpr {
-    index: usize,
-}
-
-impl ColumnExpr {
-    pub fn new(index: usize) -> ColumnExpr {
-        ColumnExpr { index }
-    }
-}
-
-impl PhysicalExpr for ColumnExpr {
-    fn evaluate(&self, batch: &RecordBatch) -> ColumnVector {
-        batch.get(&self.index).expect("Index out of bounds")
+impl PhysicalExpr {
+    pub fn evaluate(&self, batch: &RecordBatch) -> ColumnVector {
+        match self {
+            PhysicalExpr::ColumnExpr(index) => {
+                batch.get(&index).expect("Expected column to be in batch")
+            }
+        }
     }
 
-    fn to_string(&self) -> String {
-        format!("Column: {}", self.index)
+    pub fn to_string(&self) -> String {
+        match self {
+            PhysicalExpr::ColumnExpr(expr) => format!("Column: {}", expr),
+        }
     }
 }

@@ -1,23 +1,52 @@
-use std::sync::Arc;
-
 use crate::{
     datasources::datasource::Datasource,
-    datatypes::schema::Schema,
-    physical_plans::physical_plan::{PhysicalPlan, ProjectionExec, ScanExec},
+    datatypes::schema::{Field, Schema},
+    error::ZakuError,
+    physical_plans::{
+        physical_expr::PhysicalExpr,
+        physical_plan::{PhysicalPlan, ProjectionExec, ScanExec},
+    },
 };
 
 use super::logical_expr::LogicalExpr;
 
-pub trait LogicalPlan {
-    fn schema(&self) -> Schema;
-
-    fn children(&self) -> Vec<Arc<dyn LogicalPlan>>;
-
-    fn to_string(&self) -> String;
-
-    fn to_physical_plan(&self) -> Arc<dyn PhysicalPlan>;
+#[derive(Clone)]
+pub enum LogicalPlan {
+    Scan(Scan),
+    Projection(Projection),
 }
 
+impl LogicalPlan {
+    pub fn schema(&self) -> Schema {
+        match self {
+            LogicalPlan::Scan(scan) => scan.schema(),
+            LogicalPlan::Projection(projection) => projection.schema(),
+        }
+    }
+
+    pub fn children(&self) -> Vec<LogicalPlan> {
+        match self {
+            LogicalPlan::Scan(scan) => scan.children(),
+            LogicalPlan::Projection(projection) => projection.children(),
+        }
+    }
+
+    pub fn to_string(&self) -> String {
+        match self {
+            LogicalPlan::Scan(scan) => scan.to_string(),
+            LogicalPlan::Projection(projection) => projection.to_string(),
+        }
+    }
+
+    pub fn to_physical_plan(&self) -> Result<PhysicalPlan, ZakuError> {
+        match self {
+            LogicalPlan::Scan(scan) => scan.to_physical_plan(),
+            LogicalPlan::Projection(projection) => projection.to_physical_plan(),
+        }
+    }
+}
+
+#[derive(Clone)]
 pub struct Scan {
     pub datasource: Datasource,
     pub path: String,
@@ -32,10 +61,8 @@ impl Scan {
             projection,
         }
     }
-}
 
-impl LogicalPlan for Scan {
-    fn schema(&self) -> Schema {
+    pub fn schema(&self) -> Schema {
         let mut schema = self.datasource.schema().clone();
         if !self.projection.is_empty() {
             schema = schema.select(&self.projection);
@@ -43,11 +70,11 @@ impl LogicalPlan for Scan {
         schema
     }
 
-    fn children(&self) -> Vec<Arc<dyn LogicalPlan>> {
+    pub fn children(&self) -> Vec<LogicalPlan> {
         Vec::new()
     }
 
-    fn to_string(&self) -> String {
+    pub fn to_string(&self) -> String {
         if self.projection.is_empty() {
             return format!("Scan: {} | None", self.path);
         } else {
@@ -55,41 +82,41 @@ impl LogicalPlan for Scan {
         }
     }
 
-    fn to_physical_plan(&self) -> Arc<dyn PhysicalPlan> {
-        Arc::new(ScanExec::new(
+    pub fn to_physical_plan(&self) -> Result<PhysicalPlan, ZakuError> {
+        Ok(PhysicalPlan::Scan(ScanExec::new(
             self.datasource.clone(),
             self.projection.clone(),
-        ))
+        )))
     }
 }
 
+#[derive(Clone)]
 pub struct Projection {
     schema: Schema,
-    logical_plan: Arc<dyn LogicalPlan>,
-    expr: Vec<Arc<dyn LogicalExpr>>,
+    logical_plan: Box<LogicalPlan>,
+    expr: Vec<LogicalExpr>,
 }
 
 impl Projection {
-    pub fn new(logical_plan: Arc<dyn LogicalPlan>, expr: Vec<Arc<dyn LogicalExpr>>) -> Projection {
-        let schema = Schema::new(expr.iter().map(|e| e.to_field(&logical_plan)).collect());
-        Projection {
-            schema,
-            logical_plan,
+    pub fn new(logical_plan: LogicalPlan, expr: Vec<LogicalExpr>) -> Result<Projection, ZakuError> {
+        let schema: Result<Vec<Field>, _> =
+            expr.iter().map(|e| e.to_field(&logical_plan)).collect();
+        Ok(Projection {
+            schema: Schema::new(schema?),
+            logical_plan: Box::new(logical_plan),
             expr,
-        }
+        })
     }
-}
 
-impl LogicalPlan for Projection {
-    fn schema(&self) -> Schema {
+    pub fn schema(&self) -> Schema {
         self.schema.clone()
     }
 
-    fn children(&self) -> Vec<Arc<dyn LogicalPlan>> {
-        vec![self.logical_plan.clone()]
+    pub fn children(&self) -> Vec<LogicalPlan> {
+        vec![*self.logical_plan.clone()]
     }
 
-    fn to_string(&self) -> String {
+    pub fn to_string(&self) -> String {
         format!(
             "Projection: {}",
             self.expr
@@ -100,23 +127,23 @@ impl LogicalPlan for Projection {
         )
     }
 
-    fn to_physical_plan(&self) -> Arc<dyn PhysicalPlan> {
-        let physical_plan = self.logical_plan.to_physical_plan();
-        let projection_schema = Schema::new(
-            self.expr
-                .iter()
-                .map(|e| e.to_field(&self.logical_plan))
-                .collect(),
-        );
-        let physical_expr = self
+    pub fn to_physical_plan(&self) -> Result<PhysicalPlan, ZakuError> {
+        let physical_plan = self.logical_plan.to_physical_plan()?;
+        let projection_fields: Result<Vec<Field>, _> = self
+            .expr
+            .iter()
+            .map(|e| e.to_field(&self.logical_plan))
+            .collect();
+        let projection_schema = Schema::new(projection_fields?);
+        let physical_expr: Result<Vec<PhysicalExpr>, _> = self
             .expr
             .iter()
             .map(|e| e.to_physical_expr(&self.logical_plan))
             .collect();
-        Arc::new(ProjectionExec::new(
+        Ok(PhysicalPlan::Projection(ProjectionExec::new(
             projection_schema,
             physical_plan,
-            physical_expr,
-        ))
+            physical_expr?,
+        )))
     }
 }
