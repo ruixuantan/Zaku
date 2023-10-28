@@ -3,3 +3,4 @@ pub mod datatypes;
 pub mod error;
 pub mod logical_plans;
 pub mod physical_plans;
+pub mod sql;
