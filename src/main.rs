@@ -4,6 +4,7 @@ fn main() {
     let sql = "SELECT id, product_name FROM test";
     let df = Dataframe::from_csv("resources/test.csv").unwrap();
     let select_df = parse(sql, df).unwrap();
+    println!("{}", select_df.logical_plan().to_physical_plan().unwrap());
     let res = select_df
         .logical_plan()
         .to_physical_plan()

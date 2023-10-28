@@ -18,7 +18,7 @@ impl PhysicalExpr {
 
     pub fn to_string(&self) -> String {
         match self {
-            PhysicalExpr::ColumnExpr(expr) => format!("Column: {}", expr),
+            PhysicalExpr::ColumnExpr(expr) => format!("Column[{}]", expr),
         }
     }
 }

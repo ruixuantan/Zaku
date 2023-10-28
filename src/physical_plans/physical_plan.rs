@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::{
     datasources::datasource::Datasource,
     datatypes::{record_batch::RecordBatch, schema::Schema},
@@ -38,6 +40,23 @@ impl PhysicalPlan {
             PhysicalPlan::Scan(scan) => scan.to_string(),
             PhysicalPlan::Projection(projection) => projection.to_string(),
         }
+    }
+
+    fn format(plan: &PhysicalPlan, indent: usize) -> String {
+        let mut s = String::new();
+        (0..indent).for_each(|_| s.push_str("\t"));
+        s.push_str(plan.to_string().as_str());
+        s.push_str("\n");
+        plan.children().iter().for_each(|p| {
+            s.push_str(PhysicalPlan::format(p, indent + 1).as_str());
+        });
+        s
+    }
+}
+
+impl Display for PhysicalPlan {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", PhysicalPlan::format(self, 0))
     }
 }
 

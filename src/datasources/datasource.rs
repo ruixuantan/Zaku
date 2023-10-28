@@ -10,7 +10,7 @@ use crate::{
     error::ZakuError,
 };
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Datasource {
     path: String,
     schema: Schema,

@@ -4,7 +4,7 @@ use crate::{
 
 use super::logical_plan::LogicalPlan;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub enum LogicalExpr {
     Column(String),
 }

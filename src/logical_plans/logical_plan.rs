@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::{
     datasources::datasource::Datasource,
     datatypes::schema::{Field, Schema},
@@ -10,7 +12,7 @@ use crate::{
 
 use super::logical_expr::LogicalExpr;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub enum LogicalPlan {
     Scan(Scan),
     Projection(Projection),
@@ -44,9 +46,26 @@ impl LogicalPlan {
             LogicalPlan::Projection(projection) => projection.to_physical_plan(),
         }
     }
+
+    fn format(plan: &LogicalPlan, indent: usize) -> String {
+        let mut s = String::new();
+        (0..indent).for_each(|_| s.push_str("\t"));
+        s.push_str(plan.to_string().as_str());
+        s.push_str("\n");
+        plan.children().iter().for_each(|p| {
+            s.push_str(LogicalPlan::format(p, indent + 1).as_str());
+        });
+        s
+    }
 }
 
-#[derive(Clone)]
+impl Display for LogicalPlan {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", LogicalPlan::format(self, 0))
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct Scan {
     pub datasource: Datasource,
     pub path: String,
@@ -90,7 +109,7 @@ impl Scan {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Projection {
     schema: Schema,
     logical_plan: Box<LogicalPlan>,
@@ -121,7 +140,7 @@ impl Projection {
             "Projection: {}",
             self.expr
                 .iter()
-                .map(|e| e.to_string())
+                .map(|e| format!("#{}", e.to_string()))
                 .collect::<Vec<String>>()
                 .join(", ")
         )
