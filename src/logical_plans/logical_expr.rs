@@ -30,14 +30,11 @@ impl LogicalExpr {
 }
 
 fn column_to_field(input: &LogicalPlan, name: &String) -> Result<Field, ZakuError> {
-    input.schema().get_field(name)
+    Ok(input.schema().get_field(name)?.clone())
 }
 
 fn column_to_physical_expr(input: &LogicalPlan, name: &String) -> Result<PhysicalExpr, ZakuError> {
-    let index = input
-        .schema()
-        .get_index(name)
-        .expect(format!("Expected column {} to be in schema", name).as_str());
+    let index = input.schema().get_index(name)?;
     Ok(PhysicalExpr::ColumnExpr(index))
 }
 

@@ -1,8 +1,11 @@
+use std::sync::Arc;
+
 use crate::{
     datatypes::{
+        column_vector::ColumnVector,
         record_batch::RecordBatch,
         schema::{Field, Schema},
-        types::DataType,
+        types::{DataType, Value},
     },
     error::ZakuError,
 };
@@ -65,15 +68,34 @@ impl Datasource {
 
     fn load_csv_data(path: &str, schema: Schema) -> Result<RecordBatch, ZakuError> {
         let mut rdr = csv::Reader::from_path(path).map_err(|e| ZakuError::new(e.to_string()))?;
-        let mut record_batch = RecordBatch::from_schema(schema);
+        let mut cols = Vec::new();
+        schema.fields().iter().for_each(|_| cols.push(Vec::new()));
         rdr.records()
             .map(|r| r.map_err(|e| ZakuError::new(e.to_string())))
             .try_for_each(|r| {
                 let record = r?;
-                record_batch.insert_row(record.iter().map(|r| r.to_string()).collect())?;
+                record.iter().enumerate().try_for_each(|(i, str_val)| {
+                    let datatype = schema.get_datatype_from_index(&i)?;
+                    let val = Value::get_value_from_string_val(str_val, datatype);
+                    cols[i].push(val);
+                    Ok::<(), ZakuError>(())
+                })?;
                 Ok::<(), ZakuError>(())
             })?;
-        Ok(record_batch)
+        let arc_cols = cols
+            .into_iter()
+            .enumerate()
+            .map(|(i, c)| {
+                Arc::new(ColumnVector::new(
+                    schema
+                        .get_datatype_from_index(&i)
+                        .expect("Index out of bounds")
+                        .clone(),
+                    c,
+                ))
+            })
+            .collect();
+        Ok(RecordBatch::new(schema, arc_cols))
     }
 }
 
@@ -91,7 +113,7 @@ mod test {
     fn test_get_csv_schema() {
         let schema = Datasource::get_csv_schema(&csv_test_file()).unwrap();
         assert_eq!(
-            schema.get_fields(),
+            schema.fields(),
             &vec![
                 Field::new("id".to_string(), DataType::Integer),
                 Field::new("product_name".to_string(), DataType::Text),

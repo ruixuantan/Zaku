@@ -18,8 +18,8 @@ impl Dataframe {
         self.plan.schema()
     }
 
-    pub fn logical_plan(&self) -> LogicalPlan {
-        self.plan.clone()
+    pub fn logical_plan(&self) -> &LogicalPlan {
+        &self.plan
     }
 
     pub fn from_csv(filename: &str) -> Result<Dataframe, ZakuError> {

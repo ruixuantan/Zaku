@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::datatypes::{column_vector::ColumnVector, record_batch::RecordBatch};
 
 #[derive(Clone)]
@@ -6,11 +8,11 @@ pub enum PhysicalExpr {
 }
 
 impl PhysicalExpr {
-    pub fn evaluate(&self, batch: &RecordBatch) -> ColumnVector {
+    pub fn evaluate(&self, batch: &RecordBatch) -> Arc<ColumnVector> {
         match self {
-            PhysicalExpr::ColumnExpr(index) => {
-                batch.get(&index).expect("Expected column to be in batch")
-            }
+            PhysicalExpr::ColumnExpr(index) => batch
+                .get(&index)
+                .expect("Expected column to be in record batch"),
         }
     }
 

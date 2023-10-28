@@ -1,24 +1,29 @@
+use std::sync::Arc;
+
 use crate::error::ZakuError;
 
-use super::{column_vector::ColumnVector, schema::Schema, types::Value};
+use super::{column_vector::ColumnVector, schema::Schema};
 
 #[derive(Clone)]
 pub struct RecordBatch {
     schema: Schema,
-    columns: Vec<ColumnVector>,
+    columns: Vec<Arc<ColumnVector>>,
 }
 
 impl RecordBatch {
-    pub fn new(schema: Schema, columns: Vec<ColumnVector>) -> RecordBatch {
+    pub fn new(schema: Schema, columns: Vec<Arc<ColumnVector>>) -> RecordBatch {
         RecordBatch { schema, columns }
     }
 
     pub fn from_schema(schema: Schema) -> RecordBatch {
         let mut columns = Vec::new();
-        schema.get_fields().iter().for_each(|field| {
-            columns.push(ColumnVector::new(field.get_datatype().clone(), Vec::new()));
+        schema.fields().iter().for_each(|field| {
+            columns.push(Arc::new(ColumnVector::new(
+                field.datatype().clone(),
+                Vec::new(),
+            )));
         });
-        RecordBatch { schema, columns }
+        RecordBatch::new(schema, columns)
     }
 
     pub fn get_schema(&self) -> &Schema {
@@ -33,16 +38,7 @@ impl RecordBatch {
         self.columns.len()
     }
 
-    pub fn insert_row(&mut self, row: Vec<String>) -> Result<(), ZakuError> {
-        row.iter().enumerate().try_for_each(|(i, r)| {
-            let datatype = self.schema.get_datatype_from_index(&i)?;
-            let val = Value::get_value_from_string_val(&r, datatype);
-            self.columns[i].add(val);
-            Ok::<(), ZakuError>(())
-        })
-    }
-
-    pub fn get(&self, index: &usize) -> Result<ColumnVector, ZakuError> {
+    pub fn get(&self, index: &usize) -> Result<Arc<ColumnVector>, ZakuError> {
         if index >= &self.column_count() {
             return Err(ZakuError::new("Index out of bounds".to_string()));
         }

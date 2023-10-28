@@ -12,7 +12,7 @@ impl Field {
         Field { name, datatype }
     }
 
-    pub fn get_datatype(&self) -> &DataType {
+    pub fn datatype(&self) -> &DataType {
         &self.datatype
     }
 
@@ -31,11 +31,10 @@ impl Schema {
         Schema { fields }
     }
 
-    pub fn get_field(&self, field: &String) -> Result<Field, ZakuError> {
+    pub fn get_field(&self, field: &String) -> Result<&Field, ZakuError> {
         self.fields
             .iter()
             .find(|f| &f.name == field)
-            .map(|f| f.clone())
             .ok_or(ZakuError::new("Field not found".to_string()))
     }
 
@@ -46,7 +45,7 @@ impl Schema {
             .ok_or(ZakuError::new("Field not found".to_string()))
     }
 
-    pub fn get_fields(&self) -> &Vec<Field> {
+    pub fn fields(&self) -> &Vec<Field> {
         &self.fields
     }
 
@@ -70,7 +69,7 @@ impl Schema {
         fields.iter().for_each(|f| {
             // Ignore fields that don't exist
             if let Ok(field) = self.get_field(f) {
-                selected_fields.push(field);
+                selected_fields.push(field.clone());
             }
         });
         Schema::new(selected_fields)
