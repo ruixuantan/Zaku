@@ -141,7 +141,10 @@ impl ProjectionExec {
         let expr_str = self
             .expr
             .iter()
-            .map(|e| e.to_string())
+            .map(|e| match e {
+                PhysicalExpr::ColumnExpr(index) => format!("Column[{}]", index),
+                _ => String::new(),
+            })
             .collect::<Vec<String>>()
             .join(", ");
         format!("ProjectionExec: {}", expr_str)

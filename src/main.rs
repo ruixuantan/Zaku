@@ -15,8 +15,8 @@ fn execute_sql(
     print_execution_plan: bool,
 ) -> Result<String, ZakuError> {
     let select_df = parse(sql.as_str(), df)?;
-    let plan = select_df.logical_plan().to_physical_plan()?;
-    let res = plan.execute();
+    let plan = select_df.logical_plan();
+    let res = plan.to_physical_plan()?.execute();
     let prettystr = prettify(&res);
     if print_execution_plan {
         return Ok(format!("{}\n\n{}", prettystr, plan.to_string()));

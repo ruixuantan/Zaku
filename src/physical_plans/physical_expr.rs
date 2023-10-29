@@ -6,6 +6,8 @@ use crate::datatypes::{
     types::{DataType, Value},
 };
 
+use super::binary_expr::{BooleanExpr, MathExpr};
+
 #[derive(Clone)]
 pub enum PhysicalExpr {
     ColumnExpr(usize),
@@ -13,6 +15,8 @@ pub enum PhysicalExpr {
     LiteralBooleanExpr(bool),
     LiteralIntegerExpr(i32),
     LiteralFloatExpr(f32),
+    BooleanExpr(BooleanExpr),
+    MathExpr(MathExpr),
 }
 
 impl PhysicalExpr {
@@ -28,16 +32,8 @@ impl PhysicalExpr {
             PhysicalExpr::LiteralBooleanExpr(value) => create_literal(Value::Boolean(*value), size),
             PhysicalExpr::LiteralIntegerExpr(value) => create_literal(Value::Integer(*value), size),
             PhysicalExpr::LiteralFloatExpr(value) => create_literal(Value::Float(*value), size),
-        }
-    }
-
-    pub fn to_string(&self) -> String {
-        match self {
-            PhysicalExpr::ColumnExpr(expr) => format!("Column[{}]", expr),
-            PhysicalExpr::LiteralTextExpr(expr) => format!("{}", expr),
-            PhysicalExpr::LiteralBooleanExpr(expr) => format!("{}", expr),
-            PhysicalExpr::LiteralIntegerExpr(expr) => format!("{}", expr),
-            PhysicalExpr::LiteralFloatExpr(expr) => format!("{}", expr),
+            PhysicalExpr::BooleanExpr(expr) => expr.evaluate(batch),
+            PhysicalExpr::MathExpr(expr) => expr.evaluate(batch),
         }
     }
 }

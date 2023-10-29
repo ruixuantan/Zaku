@@ -4,7 +4,7 @@ use crate::{
     physical_plans::physical_expr::PhysicalExpr,
 };
 
-use super::logical_plan::LogicalPlan;
+use super::{binary_expr::BinaryExpr, logical_plan::LogicalPlan};
 
 #[derive(Debug, Clone)]
 pub enum LogicalExpr {
@@ -13,6 +13,7 @@ pub enum LogicalExpr {
     LiteralBoolean(bool),
     LiteralInteger(i32),
     LiteralFloat(f32),
+    BinaryExpr(BinaryExpr),
 }
 
 impl LogicalExpr {
@@ -27,6 +28,7 @@ impl LogicalExpr {
                 Ok(Field::new(value.to_string(), DataType::Integer))
             }
             LogicalExpr::LiteralFloat(value) => Ok(Field::new(value.to_string(), DataType::Float)),
+            LogicalExpr::BinaryExpr(expr) => expr.to_field(input),
         }
     }
 
@@ -37,6 +39,7 @@ impl LogicalExpr {
             LogicalExpr::LiteralBoolean(value) => value.to_string(),
             LogicalExpr::LiteralInteger(value) => value.to_string(),
             LogicalExpr::LiteralFloat(value) => value.to_string(),
+            LogicalExpr::BinaryExpr(expr) => expr.to_string(),
         }
     }
 
@@ -47,6 +50,7 @@ impl LogicalExpr {
             LogicalExpr::LiteralBoolean(value) => Ok(PhysicalExpr::LiteralBooleanExpr(*value)),
             LogicalExpr::LiteralInteger(value) => Ok(PhysicalExpr::LiteralIntegerExpr(*value)),
             LogicalExpr::LiteralFloat(value) => Ok(PhysicalExpr::LiteralFloatExpr(*value)),
+            LogicalExpr::BinaryExpr(expr) => expr.to_physical_expr(input),
         }
     }
 }

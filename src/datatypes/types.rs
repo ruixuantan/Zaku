@@ -56,6 +56,228 @@ impl Value {
             Value::Text(val) => val.to_string(),
         }
     }
+
+    pub fn and(&self, other: &Value) -> Value {
+        match self {
+            Value::Boolean(l) => match other {
+                Value::Boolean(r) => Value::Boolean(*l && *r),
+                _ => panic!("Type mismatch"),
+            },
+            _ => panic!("Type not supported for and"),
+        }
+    }
+
+    pub fn or(&self, other: &Value) -> Value {
+        match self {
+            Value::Boolean(l) => match other {
+                Value::Boolean(r) => Value::Boolean(*l || *r),
+                _ => panic!("Type mismatch"),
+            },
+            _ => panic!("Type not supported for or"),
+        }
+    }
+
+    pub fn eq(&self, other: &Value) -> Value {
+        match self {
+            Value::Integer(l) => match other {
+                Value::Integer(r) => Value::Boolean(*l == *r),
+                _ => panic!("Type mismatch"),
+            },
+            Value::Float(l) => match other {
+                Value::Float(r) => Value::Boolean(*l == *r),
+                _ => panic!("Type mismatch"),
+            },
+            Value::Boolean(l) => match other {
+                Value::Boolean(r) => Value::Boolean(*l == *r),
+                _ => panic!("Type mismatch"),
+            },
+            Value::Text(l) => match other {
+                Value::Text(r) => Value::Boolean(*l == *r),
+                _ => panic!("Type mismatch"),
+            },
+        }
+    }
+
+    pub fn neq(&self, other: &Value) -> Value {
+        match self {
+            Value::Integer(l) => match other {
+                Value::Integer(r) => Value::Boolean(*l != *r),
+                _ => panic!("Type mismatch"),
+            },
+            Value::Float(l) => match other {
+                Value::Float(r) => Value::Boolean(*l != *r),
+                _ => panic!("Type mismatch"),
+            },
+            Value::Boolean(l) => match other {
+                Value::Boolean(r) => Value::Boolean(*l != *r),
+                _ => panic!("Type mismatch"),
+            },
+            Value::Text(l) => match other {
+                Value::Text(r) => Value::Boolean(*l != *r),
+                _ => panic!("Type mismatch"),
+            },
+        }
+    }
+
+    pub fn gt(&self, other: &Value) -> Value {
+        match self {
+            Value::Integer(l) => match other {
+                Value::Integer(r) => Value::Boolean(*l > *r),
+                _ => panic!("Type mismatch"),
+            },
+            Value::Float(l) => match other {
+                Value::Float(r) => Value::Boolean(*l > *r),
+                _ => panic!("Type mismatch"),
+            },
+            Value::Boolean(_) => panic!("Type mismatch"),
+            Value::Text(l) => match other {
+                Value::Text(r) => Value::Boolean(*l > *r),
+                _ => panic!("Type mismatch"),
+            },
+        }
+    }
+
+    pub fn gte(&self, other: &Value) -> Value {
+        match self {
+            Value::Integer(l) => match other {
+                Value::Integer(r) => Value::Boolean(*l >= *r),
+                _ => panic!("Type mismatch"),
+            },
+            Value::Float(l) => match other {
+                Value::Float(r) => Value::Boolean(*l >= *r),
+                _ => panic!("Type mismatch"),
+            },
+            Value::Boolean(_) => panic!("Type mismatch"),
+            Value::Text(l) => match other {
+                Value::Text(r) => Value::Boolean(*l >= *r),
+                _ => panic!("Type mismatch"),
+            },
+        }
+    }
+
+    pub fn lt(&self, other: &Value) -> Value {
+        match self {
+            Value::Integer(l) => match other {
+                Value::Integer(r) => Value::Boolean(*l < *r),
+                _ => panic!("Type mismatch"),
+            },
+            Value::Float(l) => match other {
+                Value::Float(r) => Value::Boolean(*l < *r),
+                _ => panic!("Type mismatch"),
+            },
+            Value::Boolean(_) => panic!("Type mismatch"),
+            Value::Text(l) => match other {
+                Value::Text(r) => Value::Boolean(*l < *r),
+                _ => panic!("Type mismatch"),
+            },
+        }
+    }
+
+    pub fn lte(&self, other: &Value) -> Value {
+        match self {
+            Value::Integer(l) => match other {
+                Value::Integer(r) => Value::Boolean(*l <= *r),
+                _ => panic!("Type mismatch"),
+            },
+            Value::Float(l) => match other {
+                Value::Float(r) => Value::Boolean(*l <= *r),
+                _ => panic!("Type mismatch"),
+            },
+            Value::Boolean(_) => panic!("Type mismatch"),
+            Value::Text(l) => match other {
+                Value::Text(r) => Value::Boolean(*l <= *r),
+                _ => panic!("Type mismatch"),
+            },
+        }
+    }
+
+    pub fn add(&self, other: &Value) -> Value {
+        match self {
+            Value::Integer(l) => match other {
+                Value::Integer(r) => Value::Integer(*l + *r),
+                Value::Float(r) => Value::Float(*l as f32 + *r),
+                _ => panic!("Type mismatch"),
+            },
+            Value::Float(l) => match other {
+                Value::Integer(r) => Value::Float(*l + *r as f32),
+                Value::Float(r) => Value::Float(*l + *r),
+                _ => panic!("Type mismatch"),
+            },
+            Value::Boolean(_) => panic!("Type not supported for addition"),
+            Value::Text(l) => match other {
+                Value::Text(r) => Value::Text(format!("{}{}", l, r)),
+                _ => panic!("Type mismatch"),
+            },
+        }
+    }
+
+    pub fn sub(&self, other: &Value) -> Value {
+        match self {
+            Value::Integer(l) => match other {
+                Value::Integer(r) => Value::Integer(*l - *r),
+                Value::Float(r) => Value::Float(*l as f32 - *r),
+                _ => panic!("Type mismatch"),
+            },
+            Value::Float(l) => match other {
+                Value::Integer(r) => Value::Float(*l - *r as f32),
+                Value::Float(r) => Value::Float(*l - *r),
+                _ => panic!("Type mismatch"),
+            },
+            Value::Boolean(_) => panic!("Type not supported for subtraction"),
+            Value::Text(_) => panic!("Type not supported for subtraction"),
+        }
+    }
+
+    pub fn mul(&self, other: &Value) -> Value {
+        match self {
+            Value::Integer(l) => match other {
+                Value::Integer(r) => Value::Integer(*l * *r),
+                Value::Float(r) => Value::Float(*l as f32 * *r),
+                _ => panic!("Type mismatch"),
+            },
+            Value::Float(l) => match other {
+                Value::Integer(r) => Value::Float(*l * *r as f32),
+                Value::Float(r) => Value::Float(*l * *r),
+                _ => panic!("Type mismatch"),
+            },
+            Value::Boolean(_) => panic!("Type not supported for multiplication"),
+            Value::Text(_) => panic!("Type not supported for multiplication"),
+        }
+    }
+
+    pub fn div(&self, other: &Value) -> Value {
+        match self {
+            Value::Integer(l) => match other {
+                Value::Integer(r) => Value::Integer(*l / *r),
+                Value::Float(r) => Value::Float(*l as f32 / *r),
+                _ => panic!("Type mismatch"),
+            },
+            Value::Float(l) => match other {
+                Value::Integer(r) => Value::Float(*l / *r as f32),
+                Value::Float(r) => Value::Float(*l / *r),
+                _ => panic!("Type mismatch"),
+            },
+            Value::Boolean(_) => panic!("Type not supported for division"),
+            Value::Text(_) => panic!("Type not supported for division"),
+        }
+    }
+
+    pub fn modulo(&self, other: &Value) -> Value {
+        match self {
+            Value::Integer(l) => match other {
+                Value::Integer(r) => Value::Integer(*l % *r),
+                Value::Float(r) => Value::Float(*l as f32 % *r),
+                _ => panic!("Type mismatch"),
+            },
+            Value::Float(l) => match other {
+                Value::Integer(r) => Value::Float(*l % *r as f32),
+                Value::Float(r) => Value::Float(*l % *r),
+                _ => panic!("Type mismatch"),
+            },
+            Value::Boolean(_) => panic!("Type not supported for modulo"),
+            Value::Text(_) => panic!("Type not supported for modulo"),
+        }
+    }
 }
 
 #[cfg(test)]
