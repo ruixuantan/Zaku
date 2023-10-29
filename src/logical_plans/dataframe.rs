@@ -23,7 +23,7 @@ impl Dataframe {
         &self.plan
     }
 
-    pub fn from_csv(filename: &str) -> Result<Dataframe, ZakuError> {
+    pub fn from_csv(filename: &String) -> Result<Dataframe, ZakuError> {
         let datasource = Datasource::from_csv(filename)?;
         Ok(Dataframe::new(LogicalPlan::Scan(Scan::new(
             datasource,
