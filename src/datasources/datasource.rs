@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::{
     datatypes::{
-        column_vector::ColumnVector,
+        column_vector::{ColumnVector, Vector},
         record_batch::RecordBatch,
         schema::{Field, Schema},
         types::{DataType, Value},
@@ -86,13 +86,13 @@ impl Datasource {
             .into_iter()
             .enumerate()
             .map(|(i, c)| {
-                Arc::new(ColumnVector::new(
+                Arc::new(Vector::ColumnVector(ColumnVector::new(
                     schema
                         .get_datatype_from_index(&i)
                         .expect("Index out of bounds")
                         .clone(),
                     c,
-                ))
+                )))
             })
             .collect();
         Ok(RecordBatch::new(schema, arc_cols))
@@ -104,7 +104,7 @@ mod test {
     use std::{sync::Arc, vec};
 
     use crate::datatypes::{
-        column_vector::ColumnVector,
+        column_vector::{ColumnVector, Vector},
         schema::Field,
         types::{DataType, Value},
     };
@@ -143,14 +143,14 @@ mod test {
 
         let cols = record_batch.columns();
         let ex_cols = vec![
-            Arc::new(ColumnVector::new(
+            Arc::new(Vector::ColumnVector(ColumnVector::new(
                 DataType::Integer,
                 vec![1, 2, 3, 4, 5]
                     .iter()
                     .map(|i| Value::Integer(*i))
                     .collect(),
-            )),
-            Arc::new(ColumnVector::new(
+            ))),
+            Arc::new(Vector::ColumnVector(ColumnVector::new(
                 DataType::Text,
                 vec![
                     "toothbrush",
@@ -162,28 +162,28 @@ mod test {
                 .iter()
                 .map(|s| Value::Text(s.to_string()))
                 .collect(),
-            )),
-            Arc::new(ColumnVector::new(
+            ))),
+            Arc::new(Vector::ColumnVector(ColumnVector::new(
                 DataType::Boolean,
                 vec![true, true, true, false, true]
                     .iter()
                     .map(|b| Value::Boolean(*b))
                     .collect(),
-            )),
-            Arc::new(ColumnVector::new(
+            ))),
+            Arc::new(Vector::ColumnVector(ColumnVector::new(
                 DataType::Float,
                 vec![5.00, 10.00, 15.50, 2.00, 20.00]
                     .iter()
                     .map(|f| Value::Float(*f))
                     .collect(),
-            )),
-            Arc::new(ColumnVector::new(
+            ))),
+            Arc::new(Vector::ColumnVector(ColumnVector::new(
                 DataType::Integer,
                 vec![100, 50, 25, 0, 10]
                     .iter()
                     .map(|i| Value::Integer(*i))
                     .collect(),
-            )),
+            ))),
         ];
         assert_eq!(cols, &ex_cols);
     }

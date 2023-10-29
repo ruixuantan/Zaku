@@ -1,6 +1,6 @@
 use std::vec;
 
-use crate::datatypes::{record_batch::RecordBatch, schema::Schema};
+use crate::datatypes::{column_vector::Vector, record_batch::RecordBatch, schema::Schema};
 
 fn compute_cell_space(schema: &Schema, record_batch: &RecordBatch) -> Vec<usize> {
     let mut size = vec![];
@@ -13,11 +13,20 @@ fn compute_cell_space(schema: &Schema, record_batch: &RecordBatch) -> Vec<usize>
         .enumerate()
         .for_each(|(i, col)| {
             let mut max = size[i];
-            col.values().iter().for_each(|val| {
-                if val.to_string().len() > max {
-                    max = val.to_string().len();
+            match col.as_ref() {
+                Vector::ColumnVector(vector) => {
+                    vector.values().iter().for_each(|val| {
+                        if val.to_string().len() > max {
+                            max = val.to_string().len();
+                        }
+                    });
                 }
-            });
+                Vector::LiteralVector(vector) => {
+                    if vector.get_value(&i).to_string().len() > max {
+                        max = vector.get_value(&i).to_string().len();
+                    }
+                }
+            }
             size[i] = max;
         });
     size
@@ -67,7 +76,7 @@ pub fn prettify(record_batch: &RecordBatch) -> String {
     (0..row_count).for_each(|i| {
         let mut result = vec![];
         (0..col_count).for_each(|j| {
-            let value = columns[j].get_value(i).to_string();
+            let value = columns[j].get_value(&i).to_string();
             let padded_value = pad_value(value, cell_space[j]);
             result.push(padded_value);
         });

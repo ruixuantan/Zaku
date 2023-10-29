@@ -2,16 +2,16 @@ use std::sync::Arc;
 
 use crate::error::ZakuError;
 
-use super::{column_vector::ColumnVector, schema::Schema};
+use super::{column_vector::Vector, schema::Schema};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct RecordBatch {
     schema: Schema,
-    columns: Vec<Arc<ColumnVector>>,
+    columns: Vec<Arc<Vector>>,
 }
 
 impl RecordBatch {
-    pub fn new(schema: Schema, columns: Vec<Arc<ColumnVector>>) -> RecordBatch {
+    pub fn new(schema: Schema, columns: Vec<Arc<Vector>>) -> RecordBatch {
         RecordBatch { schema, columns }
     }
 
@@ -19,7 +19,7 @@ impl RecordBatch {
         &self.schema
     }
 
-    pub fn columns(&self) -> &Vec<Arc<ColumnVector>> {
+    pub fn columns(&self) -> &Vec<Arc<Vector>> {
         &self.columns
     }
 
@@ -31,7 +31,7 @@ impl RecordBatch {
         self.columns.len()
     }
 
-    pub fn get(&self, index: &usize) -> Result<Arc<ColumnVector>, ZakuError> {
+    pub fn get(&self, index: &usize) -> Result<Arc<Vector>, ZakuError> {
         if index >= &self.column_count() {
             return Err(ZakuError::new("Index out of bounds".to_string()));
         }
