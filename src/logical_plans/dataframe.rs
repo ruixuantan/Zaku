@@ -2,7 +2,7 @@ use crate::{datasources::datasource::Datasource, datatypes::schema::Schema, erro
 
 use super::{
     logical_expr::LogicalExpr,
-    logical_plan::{LogicalPlan, Projection, Scan},
+    logical_plan::{Filter, LogicalPlan, Projection, Scan},
 };
 
 #[derive(Debug, Clone)]
@@ -34,6 +34,13 @@ impl Dataframe {
 
     pub fn projection(&self, expr: Vec<LogicalExpr>) -> Result<Dataframe, ZakuError> {
         Ok(Dataframe::new(LogicalPlan::Projection(Projection::new(
+            self.plan.clone(),
+            expr,
+        )?)))
+    }
+
+    pub fn filter(&self, expr: LogicalExpr) -> Result<Dataframe, ZakuError> {
+        Ok(Dataframe::new(LogicalPlan::Filter(Filter::new(
             self.plan.clone(),
             expr,
         )?)))

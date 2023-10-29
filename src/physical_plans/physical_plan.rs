@@ -1,8 +1,13 @@
-use std::fmt::Display;
+use std::sync::Arc;
 
 use crate::{
     datasources::datasource::Datasource,
-    datatypes::{record_batch::RecordBatch, schema::Schema},
+    datatypes::{
+        column_vector::{ColumnVector, Vector},
+        record_batch::RecordBatch,
+        schema::Schema,
+        types::Value,
+    },
 };
 
 use super::physical_expr::PhysicalExpr;
@@ -11,6 +16,7 @@ use super::physical_expr::PhysicalExpr;
 pub enum PhysicalPlan {
     Scan(ScanExec),
     Projection(ProjectionExec),
+    Filter(FilterExec),
 }
 
 impl PhysicalPlan {
@@ -18,6 +24,7 @@ impl PhysicalPlan {
         match self {
             PhysicalPlan::Scan(scan) => scan.schema(),
             PhysicalPlan::Projection(projection) => projection.schema(),
+            PhysicalPlan::Filter(filter) => filter.schema(),
         }
     }
 
@@ -25,6 +32,7 @@ impl PhysicalPlan {
         match self {
             PhysicalPlan::Scan(scan) => scan.execute(),
             PhysicalPlan::Projection(projection) => projection.execute(),
+            PhysicalPlan::Filter(filter) => filter.execute(),
         }
     }
 
@@ -32,31 +40,8 @@ impl PhysicalPlan {
         match self {
             PhysicalPlan::Scan(scan) => scan.children(),
             PhysicalPlan::Projection(projection) => projection.children(),
+            PhysicalPlan::Filter(filter) => filter.children(),
         }
-    }
-
-    pub fn to_string(&self) -> String {
-        match self {
-            PhysicalPlan::Scan(scan) => scan.to_string(),
-            PhysicalPlan::Projection(projection) => projection.to_string(),
-        }
-    }
-
-    fn format(plan: &PhysicalPlan, indent: usize) -> String {
-        let mut s = String::new();
-        (0..indent).for_each(|_| s.push_str("\t"));
-        s.push_str(plan.to_string().as_str());
-        s.push_str("\n");
-        plan.children().iter().for_each(|p| {
-            s.push_str(PhysicalPlan::format(p, indent + 1).as_str());
-        });
-        s
-    }
-}
-
-impl Display for PhysicalPlan {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", PhysicalPlan::format(self, 0))
     }
 }
 
@@ -136,17 +121,52 @@ impl ProjectionExec {
     fn children(&self) -> Vec<PhysicalPlan> {
         vec![*self.physical_plan.clone()]
     }
+}
 
-    fn to_string(&self) -> String {
-        let expr_str = self
-            .expr
+#[derive(Clone)]
+pub struct FilterExec {
+    schema: Schema,
+    physical_plan: Box<PhysicalPlan>,
+    expr: PhysicalExpr,
+}
+
+impl FilterExec {
+    pub fn new(schema: Schema, physical_plan: PhysicalPlan, expr: PhysicalExpr) -> FilterExec {
+        FilterExec {
+            schema,
+            physical_plan: Box::new(physical_plan),
+            expr,
+        }
+    }
+
+    fn schema(&self) -> Schema {
+        self.schema.clone()
+    }
+
+    fn execute(&self) -> RecordBatch {
+        let record_batch = self.physical_plan.execute();
+        let eval_col = self.expr.evaluate(&record_batch).values();
+
+        let cols = record_batch
+            .columns()
             .iter()
-            .map(|e| match e {
-                PhysicalExpr::ColumnExpr(index) => format!("Column[{}]", index),
-                _ => String::new(),
+            .map(|c| {
+                Arc::new(Vector::ColumnVector(ColumnVector::new(
+                    c.get_type().clone(),
+                    c.values()
+                        .iter()
+                        .enumerate()
+                        .filter(|(i, _)| eval_col[*i] == Value::Boolean(true))
+                        .map(|(_, v)| v.clone())
+                        .collect(),
+                )))
             })
-            .collect::<Vec<String>>()
-            .join(", ");
-        format!("ProjectionExec: {}", expr_str)
+            .collect();
+
+        RecordBatch::new(self.schema.clone(), cols)
+    }
+
+    fn children(&self) -> Vec<PhysicalPlan> {
+        vec![*self.physical_plan.clone()]
     }
 }

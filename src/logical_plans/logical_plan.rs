@@ -6,7 +6,7 @@ use crate::{
     error::ZakuError,
     physical_plans::{
         physical_expr::PhysicalExpr,
-        physical_plan::{PhysicalPlan, ProjectionExec, ScanExec},
+        physical_plan::{FilterExec, PhysicalPlan, ProjectionExec, ScanExec},
     },
 };
 
@@ -16,6 +16,7 @@ use super::logical_expr::LogicalExpr;
 pub enum LogicalPlan {
     Scan(Scan),
     Projection(Projection),
+    Filter(Filter),
 }
 
 impl LogicalPlan {
@@ -23,6 +24,7 @@ impl LogicalPlan {
         match self {
             LogicalPlan::Scan(scan) => scan.schema(),
             LogicalPlan::Projection(projection) => projection.schema(),
+            LogicalPlan::Filter(filter) => filter.schema(),
         }
     }
 
@@ -30,6 +32,7 @@ impl LogicalPlan {
         match self {
             LogicalPlan::Scan(scan) => scan.children(),
             LogicalPlan::Projection(projection) => projection.children(),
+            LogicalPlan::Filter(filter) => filter.children(),
         }
     }
 
@@ -37,6 +40,7 @@ impl LogicalPlan {
         match self {
             LogicalPlan::Scan(scan) => scan.to_string(),
             LogicalPlan::Projection(projection) => projection.to_string(),
+            LogicalPlan::Filter(filter) => filter.to_string(),
         }
     }
 
@@ -44,6 +48,7 @@ impl LogicalPlan {
         match self {
             LogicalPlan::Scan(scan) => scan.to_physical_plan(),
             LogicalPlan::Projection(projection) => projection.to_physical_plan(),
+            LogicalPlan::Filter(filter) => filter.to_physical_plan(),
         }
     }
 
@@ -163,6 +168,43 @@ impl Projection {
             projection_schema,
             physical_plan,
             physical_expr?,
+        )))
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Filter {
+    logical_plan: Box<LogicalPlan>,
+    expr: LogicalExpr,
+}
+
+impl Filter {
+    pub fn new(logical_plan: LogicalPlan, expr: LogicalExpr) -> Result<Filter, ZakuError> {
+        Ok(Filter {
+            logical_plan: Box::new(logical_plan),
+            expr,
+        })
+    }
+
+    pub fn schema(&self) -> Schema {
+        self.logical_plan.schema()
+    }
+
+    pub fn children(&self) -> Vec<LogicalPlan> {
+        vec![*self.logical_plan.clone()]
+    }
+
+    pub fn to_string(&self) -> String {
+        format!("Filter: {}", self.expr.to_string())
+    }
+
+    pub fn to_physical_plan(&self) -> Result<PhysicalPlan, ZakuError> {
+        let physical_plan = self.logical_plan.to_physical_plan()?;
+        let physical_expr = self.expr.to_physical_expr(&self.logical_plan)?;
+        Ok(PhysicalPlan::Filter(FilterExec::new(
+            self.schema(),
+            physical_plan,
+            physical_expr,
         )))
     }
 }

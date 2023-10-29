@@ -21,6 +21,13 @@ impl Vector {
         }
     }
 
+    pub fn values(&self) -> Vec<Value> {
+        match self {
+            Vector::ColumnVector(vector) => vector.values().clone(),
+            Vector::LiteralVector(vector) => vector.values(),
+        }
+    }
+
     pub fn size(&self) -> usize {
         match self {
             Vector::ColumnVector(vector) => vector.size(),
@@ -85,5 +92,9 @@ impl LiteralVector {
             panic!("Index out of bounds");
         }
         &self.value
+    }
+
+    pub fn values(&self) -> Vec<Value> {
+        (0..self.size).map(|_| self.value.clone()).collect()
     }
 }
