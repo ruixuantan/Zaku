@@ -106,15 +106,9 @@ impl BooleanExpr {
     }
 
     pub fn to_physical_expr(&self, input: &LogicalPlan) -> Result<PhysicalExpr, ZakuError> {
+        get_datatype(&self.l, &self.r, input)?;
         let l = self.l.to_physical_expr(input)?;
         let r = self.r.to_physical_expr(input)?;
-
-        if self.l.as_ref().to_field(input)?.datatype()
-            != self.r.as_ref().to_field(input)?.datatype()
-        {
-            return Err(ZakuError::new("Datatypes do not match".to_string()));
-        }
-
         let op = BooleanOp::from_str(&self.op)?;
         Ok(PhysicalExpr::BooleanExpr(
             physical_plans::binary_expr::BooleanExpr::new(Box::new(l), op, Box::new(r)),
@@ -140,37 +134,8 @@ impl MathExpr {
         }
     }
 
-    fn get_datatype(&self, input: &LogicalPlan) -> Result<DataType, ZakuError> {
-        let l_field = self.l.as_ref().to_field(input)?;
-        let r_field = self.r.as_ref().to_field(input)?;
-        let l_datatype = l_field.datatype();
-        let r_datatype = r_field.datatype();
-        let err = Err(ZakuError::new("Datatypes do not match".to_string()));
-
-        match l_datatype {
-            DataType::Integer => match r_datatype {
-                DataType::Integer => Ok(DataType::Integer),
-                DataType::Float => Ok(DataType::Float),
-                _ => err,
-            },
-            DataType::Float => match r_datatype {
-                DataType::Integer => Ok(DataType::Float),
-                DataType::Float => Ok(DataType::Float),
-                _ => err,
-            },
-            DataType::Text => match r_datatype {
-                DataType::Text => Ok(DataType::Text),
-                _ => err,
-            },
-            DataType::Boolean => match r_datatype {
-                DataType::Boolean => Ok(DataType::Boolean),
-                _ => err,
-            },
-        }
-    }
-
     pub fn to_field(&self, input: &LogicalPlan) -> Result<Field, ZakuError> {
-        let datatype = self.get_datatype(input)?;
+        let datatype = get_datatype(&self.l, &self.r, input)?;
         Ok(Field::new(self.name.clone(), datatype))
     }
 
@@ -182,10 +147,43 @@ impl MathExpr {
         let l = self.l.to_physical_expr(input)?;
         let r = self.r.to_physical_expr(input)?;
 
-        let _ = self.get_datatype(input)?;
+        let _ = get_datatype(&self.l, &self.r, input)?;
         let op = physical_plans::binary_expr::MathOp::from_str(&self.op)?;
         Ok(PhysicalExpr::MathExpr(
             physical_plans::binary_expr::MathExpr::new(Box::new(l), op, Box::new(r)),
         ))
+    }
+}
+
+fn get_datatype(
+    l: &Box<LogicalExpr>,
+    r: &Box<LogicalExpr>,
+    input: &LogicalPlan,
+) -> Result<DataType, ZakuError> {
+    let l_field = l.as_ref().to_field(input)?;
+    let r_field = r.as_ref().to_field(input)?;
+    let l_datatype = l_field.datatype();
+    let r_datatype = r_field.datatype();
+    let err = Err(ZakuError::new("Datatypes do not match".to_string()));
+
+    match l_datatype {
+        DataType::Integer => match r_datatype {
+            DataType::Integer => Ok(DataType::Integer),
+            DataType::Float => Ok(DataType::Float),
+            _ => err,
+        },
+        DataType::Float => match r_datatype {
+            DataType::Integer => Ok(DataType::Float),
+            DataType::Float => Ok(DataType::Float),
+            _ => err,
+        },
+        DataType::Text => match r_datatype {
+            DataType::Text => Ok(DataType::Text),
+            _ => err,
+        },
+        DataType::Boolean => match r_datatype {
+            DataType::Boolean => Ok(DataType::Boolean),
+            _ => err,
+        },
     }
 }

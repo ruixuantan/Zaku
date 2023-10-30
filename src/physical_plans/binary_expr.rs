@@ -29,7 +29,7 @@ impl BooleanOp {
             "and" => Ok(BooleanOp::And),
             "or" => Ok(BooleanOp::Or),
             "=" => Ok(BooleanOp::Eq),
-            "!=" => Ok(BooleanOp::Neq),
+            "<>" => Ok(BooleanOp::Neq),
             ">" => Ok(BooleanOp::Gt),
             ">=" => Ok(BooleanOp::Gte),
             "<" => Ok(BooleanOp::Lt),
@@ -68,10 +68,6 @@ impl BooleanExpr {
         let row_num = record_batch.row_count();
         let l = self.l.evaluate(record_batch);
         let r = self.r.evaluate(record_batch);
-
-        if l.get_type() != r.get_type() {
-            panic!("Type mismatch");
-        }
 
         let vector: Vec<Value> = (0..row_num)
             .map(|i| {

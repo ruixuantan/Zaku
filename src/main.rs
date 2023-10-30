@@ -19,7 +19,7 @@ fn execute_sql(
     let res = plan.to_physical_plan()?.execute();
     let prettystr = prettify(&res);
     if print_execution_plan {
-        return Ok(format!("{}\n\n{}", prettystr, plan.to_string()));
+        return Ok(format!("{}\n\n{}", prettystr, plan));
     }
     Ok(prettystr)
 }

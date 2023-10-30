@@ -81,10 +81,12 @@ impl Value {
         match self {
             Value::Integer(l) => match other {
                 Value::Integer(r) => Value::Boolean(*l == *r),
+                Value::Float(r) => Value::Boolean(*l as f32 == *r),
                 _ => panic!("Type mismatch"),
             },
             Value::Float(l) => match other {
                 Value::Float(r) => Value::Boolean(*l == *r),
+                Value::Integer(r) => Value::Boolean(*l == *r as f32),
                 _ => panic!("Type mismatch"),
             },
             Value::Boolean(l) => match other {
@@ -102,10 +104,12 @@ impl Value {
         match self {
             Value::Integer(l) => match other {
                 Value::Integer(r) => Value::Boolean(*l != *r),
+                Value::Float(r) => Value::Boolean(*l as f32 != *r),
                 _ => panic!("Type mismatch"),
             },
             Value::Float(l) => match other {
                 Value::Float(r) => Value::Boolean(*l != *r),
+                Value::Integer(r) => Value::Boolean(*l != *r as f32),
                 _ => panic!("Type mismatch"),
             },
             Value::Boolean(l) => match other {
@@ -123,10 +127,12 @@ impl Value {
         match self {
             Value::Integer(l) => match other {
                 Value::Integer(r) => Value::Boolean(*l > *r),
+                Value::Float(r) => Value::Boolean(*l as f32 > *r),
                 _ => panic!("Type mismatch"),
             },
             Value::Float(l) => match other {
                 Value::Float(r) => Value::Boolean(*l > *r),
+                Value::Integer(r) => Value::Boolean(*l > *r as f32),
                 _ => panic!("Type mismatch"),
             },
             Value::Boolean(_) => panic!("Type mismatch"),
@@ -141,10 +147,12 @@ impl Value {
         match self {
             Value::Integer(l) => match other {
                 Value::Integer(r) => Value::Boolean(*l >= *r),
+                Value::Float(r) => Value::Boolean(*l as f32 >= *r),
                 _ => panic!("Type mismatch"),
             },
             Value::Float(l) => match other {
                 Value::Float(r) => Value::Boolean(*l >= *r),
+                Value::Integer(r) => Value::Boolean(*l >= *r as f32),
                 _ => panic!("Type mismatch"),
             },
             Value::Boolean(_) => panic!("Type mismatch"),
@@ -159,10 +167,12 @@ impl Value {
         match self {
             Value::Integer(l) => match other {
                 Value::Integer(r) => Value::Boolean(*l < *r),
+                Value::Float(r) => Value::Boolean(*r > *l as f32),
                 _ => panic!("Type mismatch"),
             },
             Value::Float(l) => match other {
                 Value::Float(r) => Value::Boolean(*l < *r),
+                Value::Integer(r) => Value::Boolean(*l < *r as f32),
                 _ => panic!("Type mismatch"),
             },
             Value::Boolean(_) => panic!("Type mismatch"),
@@ -177,10 +187,12 @@ impl Value {
         match self {
             Value::Integer(l) => match other {
                 Value::Integer(r) => Value::Boolean(*l <= *r),
+                Value::Float(r) => Value::Boolean(*l as f32 <= *r),
                 _ => panic!("Type mismatch"),
             },
             Value::Float(l) => match other {
                 Value::Float(r) => Value::Boolean(*l <= *r),
+                Value::Integer(r) => Value::Boolean(*l <= *r as f32),
                 _ => panic!("Type mismatch"),
             },
             Value::Boolean(_) => panic!("Type mismatch"),

@@ -70,18 +70,6 @@ impl ScanExec {
     fn children(&self) -> Vec<PhysicalPlan> {
         Vec::new()
     }
-
-    fn to_string(&self) -> String {
-        if self.projection.is_empty() {
-            return format!("ScanExec: {} | None", self.datasource.path());
-        } else {
-            return format!(
-                "ScanExec: {} | {}",
-                self.datasource.path(),
-                self.projection.join(", ")
-            );
-        }
-    }
 }
 
 #[derive(Clone)]
