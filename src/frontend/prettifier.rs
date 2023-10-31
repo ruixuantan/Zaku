@@ -61,7 +61,7 @@ pub fn prettify(record_batch: &RecordBatch) -> String {
         .fields()
         .iter()
         .enumerate()
-        .map(|(i, field)| pad_value(field.name().clone(), cell_space[i]))
+        .map(|(i, field)| pad_value(field.alias().clone(), cell_space[i]))
         .collect::<Vec<String>>()
         .join("|");
     results.push(header);

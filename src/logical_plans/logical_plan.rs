@@ -122,9 +122,20 @@ pub struct Projection {
 }
 
 impl Projection {
-    pub fn new(logical_plan: LogicalPlan, expr: Vec<LogicalExpr>) -> Result<Projection, ZakuError> {
-        let schema: Result<Vec<Field>, _> =
-            expr.iter().map(|e| e.to_field(&logical_plan)).collect();
+    pub fn new(
+        logical_plan: LogicalPlan,
+        expr: Vec<LogicalExpr>,
+        aliases: Vec<Option<String>>,
+    ) -> Result<Projection, ZakuError> {
+        let schema: Result<Vec<Field>, _> = expr
+            .iter()
+            .enumerate()
+            .map(|(i, e)| {
+                e.to_field(&logical_plan)
+                    .map(|f| f.set_alias(aliases[i].clone()))
+            })
+            .collect();
+
         Ok(Projection {
             schema: Schema::new(schema?),
             logical_plan: Box::new(logical_plan),
@@ -156,7 +167,16 @@ impl Projection {
         let projection_fields: Result<Vec<Field>, _> = self
             .expr
             .iter()
-            .map(|e| e.to_field(&self.logical_plan))
+            .map(|e| {
+                e.to_field(&self.logical_plan).map(|f| {
+                    f.set_alias(
+                        self.schema
+                            .get_field(&f.name())
+                            .expect("Field not found")
+                            .get_alias(),
+                    )
+                })
+            })
             .collect();
         let projection_schema = Schema::new(projection_fields?);
         let physical_expr: Result<Vec<PhysicalExpr>, _> = self

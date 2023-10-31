@@ -32,10 +32,15 @@ impl Dataframe {
         ))))
     }
 
-    pub fn projection(&self, expr: Vec<LogicalExpr>) -> Result<Dataframe, ZakuError> {
+    pub fn projection(
+        &self,
+        expr: Vec<LogicalExpr>,
+        aliases: Vec<Option<String>>,
+    ) -> Result<Dataframe, ZakuError> {
         Ok(Dataframe::new(LogicalPlan::Projection(Projection::new(
             self.plan.clone(),
             expr,
+            aliases,
         )?)))
     }
 

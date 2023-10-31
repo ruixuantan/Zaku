@@ -4,12 +4,33 @@ use crate::error::ZakuError;
 #[derive(Debug, Clone, PartialEq)]
 pub struct Field {
     name: String,
+    alias: Option<String>,
     datatype: DataType,
 }
 
 impl Field {
     pub fn new(name: String, datatype: DataType) -> Field {
-        Field { name, datatype }
+        Field {
+            name,
+            alias: None,
+            datatype,
+        }
+    }
+
+    pub fn set_alias(&self, alias: Option<String>) -> Field {
+        Field {
+            name: self.name.clone(),
+            alias,
+            datatype: self.datatype.clone(),
+        }
+    }
+
+    pub fn get_alias(&self) -> Option<String> {
+        self.alias.clone()
+    }
+
+    pub fn alias(&self) -> String {
+        self.alias.clone().unwrap_or(self.name.clone())
     }
 
     pub fn name(&self) -> &String {

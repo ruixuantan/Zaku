@@ -10,7 +10,7 @@ use crate::{
     logical_plans::{
         binary_expr::{BinaryExpr, BooleanExpr, MathExpr},
         dataframe::Dataframe,
-        logical_expr::LogicalExpr,
+        logical_expr::{Column, LogicalExpr},
     },
 };
 
@@ -28,6 +28,33 @@ fn parse_select(sql: &str) -> Result<Box<Select>, ZakuError> {
     };
 
     Ok(select_stmt)
+}
+
+fn parse_projection(
+    select: &Box<Select>,
+) -> Result<(Vec<LogicalExpr>, Vec<Option<String>>), ZakuError> {
+    let mut aliases = vec![];
+    let logical_expr = select
+        .projection
+        .iter()
+        .filter(|item| match item {
+            SelectItem::UnnamedExpr(_) => true,
+            SelectItem::ExprWithAlias { expr: _, alias: _ } => true,
+            _ => false,
+        })
+        .map(|item| match item {
+            SelectItem::UnnamedExpr(expr) => {
+                aliases.push(None);
+                parse_expr(expr)
+            }
+            SelectItem::ExprWithAlias { expr, alias } => {
+                aliases.push(Some(alias.value.clone()));
+                parse_expr(expr)
+            }
+            _ => panic!("Non unnamed expressions should have been filtered"),
+        })
+        .collect::<Result<Vec<LogicalExpr>, ZakuError>>()?;
+    Ok((logical_expr, aliases))
 }
 
 fn parse_expr(expr: &Expr) -> Result<LogicalExpr, ZakuError> {
@@ -78,7 +105,7 @@ fn parse_expr(expr: &Expr) -> Result<LogicalExpr, ZakuError> {
                 _ => Err(ZakuError::new("Unsupported operator".to_string())),
             }
         }
-        Expr::Identifier(ident) => Ok(LogicalExpr::Column(ident.value.clone())),
+        Expr::Identifier(ident) => Ok(LogicalExpr::Column(Column::new(ident.value.clone()))),
         Expr::Value(value) => match value {
             sqlparser::ast::Value::Boolean(b) => Ok(LogicalExpr::LiteralBoolean(*b)),
             sqlparser::ast::Value::Number(n, _) => Ok(LogicalExpr::LiteralFloat(
@@ -87,31 +114,21 @@ fn parse_expr(expr: &Expr) -> Result<LogicalExpr, ZakuError> {
             sqlparser::ast::Value::SingleQuotedString(s) => Ok(LogicalExpr::LiteralText(s.clone())),
             _ => Err(ZakuError::new("Unsupported value".to_string())),
         },
+        Expr::Nested(expr) => parse_expr(expr),
         _ => Err(ZakuError::new("Unsupported expression".to_string())),
     }
 }
 
 fn create_df(select: &Box<Select>, dataframe: Dataframe) -> Result<Dataframe, ZakuError> {
     let mut df = dataframe;
-    let mut projections = vec![];
-    select.projection.iter().for_each(|item| match item {
-        SelectItem::UnnamedExpr(expr) => match expr {
-            Expr::Identifier(ident) => {
-                projections.push(LogicalExpr::Column(ident.value.clone()));
-            }
-            _ => (),
-        },
-        SelectItem::Wildcard(_) => (),
-        _ => (),
-    });
-
     let selection = select.selection.as_ref().map(|expr| parse_expr(expr));
     if let Some(selection) = selection {
         df = df.filter(selection?)?;
     }
 
+    let (projections, aliases) = parse_projection(select)?;
     if projections.len() > 0 {
-        df = df.projection(projections)?;
+        df = df.projection(projections, aliases)?;
     }
 
     Ok(df)
