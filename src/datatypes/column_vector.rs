@@ -21,10 +21,10 @@ impl Vector {
         }
     }
 
-    pub fn values(&self) -> Vec<Value> {
+    pub fn iter(&self) -> Box<dyn Iterator<Item = &Value> + '_> {
         match self {
-            Vector::ColumnVector(vector) => vector.values().clone(),
-            Vector::LiteralVector(vector) => vector.values(),
+            Vector::ColumnVector(vector) => Box::new(vector.iter()),
+            Vector::LiteralVector(vector) => Box::new(vector.iter()),
         }
     }
 
@@ -51,10 +51,6 @@ impl ColumnVector {
         &self.datatype
     }
 
-    pub fn values(&self) -> &Vec<Value> {
-        &self.values
-    }
-
     pub fn get_value(&self, index: &usize) -> &Value {
         if *index >= self.values.len() {
             panic!("Index out of bounds");
@@ -68,6 +64,32 @@ impl ColumnVector {
 
     pub fn add(&mut self, value: Value) {
         self.values.push(value);
+    }
+
+    pub fn iter(&self) -> ColumnVectorIterator {
+        ColumnVectorIterator {
+            column_vector: self,
+            index: 0,
+        }
+    }
+}
+
+pub struct ColumnVectorIterator<'a> {
+    column_vector: &'a ColumnVector,
+    index: usize,
+}
+
+impl<'a> Iterator for ColumnVectorIterator<'a> {
+    type Item = &'a Value;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index >= self.column_vector.size() {
+            return None;
+        } else {
+            let val = &self.column_vector.values[self.index];
+            self.index += 1;
+            return Some(val);
+        }
     }
 }
 
@@ -94,7 +116,28 @@ impl LiteralVector {
         &self.value
     }
 
-    pub fn values(&self) -> Vec<Value> {
-        (0..self.size).map(|_| self.value.clone()).collect()
+    pub fn iter(&self) -> LiteralVectorIterator {
+        LiteralVectorIterator {
+            literal_vector: self,
+            index: 0,
+        }
+    }
+}
+
+pub struct LiteralVectorIterator<'a> {
+    literal_vector: &'a LiteralVector,
+    index: usize,
+}
+
+impl<'a> Iterator for LiteralVectorIterator<'a> {
+    type Item = &'a Value;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index >= self.literal_vector.size {
+            return None;
+        } else {
+            self.index += 1;
+            return Some(&self.literal_vector.value);
+        }
     }
 }

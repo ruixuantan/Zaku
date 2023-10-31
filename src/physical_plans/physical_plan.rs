@@ -133,18 +133,16 @@ impl FilterExec {
 
     fn execute(&self) -> RecordBatch {
         let record_batch = self.physical_plan.execute();
-        let eval_col = self.expr.evaluate(&record_batch).values();
+        let eval_col = self.expr.evaluate(&record_batch);
 
         let cols = record_batch
-            .columns()
             .iter()
             .map(|c| {
                 Arc::new(Vector::ColumnVector(ColumnVector::new(
                     c.get_type().clone(),
-                    c.values()
-                        .iter()
+                    c.iter()
                         .enumerate()
-                        .filter(|(i, _)| eval_col[*i] == Value::Boolean(true))
+                        .filter(|(i, _)| eval_col.get_value(i) == &Value::Boolean(true))
                         .map(|(_, v)| v.clone())
                         .collect(),
                 )))

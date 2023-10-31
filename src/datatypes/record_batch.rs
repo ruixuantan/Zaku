@@ -19,6 +19,13 @@ impl RecordBatch {
         &self.schema
     }
 
+    pub fn iter(&self) -> RecordBatchIterator {
+        RecordBatchIterator {
+            record_batch: self,
+            index: 0,
+        }
+    }
+
     pub fn columns(&self) -> &Vec<Arc<Vector>> {
         &self.columns
     }
@@ -36,5 +43,24 @@ impl RecordBatch {
             return Err(ZakuError::new("Index out of bounds".to_string()));
         }
         Ok(self.columns[*index].clone())
+    }
+}
+
+pub struct RecordBatchIterator<'a> {
+    record_batch: &'a RecordBatch,
+    index: usize,
+}
+
+impl<'a> Iterator for RecordBatchIterator<'a> {
+    type Item = &'a Arc<Vector>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index >= self.record_batch.column_count() {
+            return None;
+        } else {
+            let col = &self.record_batch.columns[self.index];
+            self.index += 1;
+            return Some(col);
+        }
     }
 }
