@@ -30,10 +30,7 @@ fn parse_select(sql: &str) -> Result<Box<Select>, ZakuError> {
     Ok(select_stmt)
 }
 
-fn parse_projection(
-    select: &Box<Select>,
-) -> Result<(Vec<LogicalExpr>, Vec<Option<String>>), ZakuError> {
-    let mut aliases = vec![];
+fn parse_projection(select: &Box<Select>) -> Result<Vec<LogicalExpr>, ZakuError> {
     let logical_expr = select
         .projection
         .iter()
@@ -43,18 +40,14 @@ fn parse_projection(
             _ => false,
         })
         .map(|item| match item {
-            SelectItem::UnnamedExpr(expr) => {
-                aliases.push(None);
-                parse_expr(expr)
-            }
+            SelectItem::UnnamedExpr(expr) => parse_expr(expr),
             SelectItem::ExprWithAlias { expr, alias } => {
-                aliases.push(Some(alias.value.clone()));
-                parse_expr(expr)
+                parse_expr(expr).map(|e| e.set_alias(alias.value.clone()))
             }
             _ => panic!("Non unnamed expressions should have been filtered"),
         })
         .collect::<Result<Vec<LogicalExpr>, ZakuError>>()?;
-    Ok((logical_expr, aliases))
+    Ok(logical_expr)
 }
 
 fn parse_expr(expr: &Expr) -> Result<LogicalExpr, ZakuError> {
@@ -63,55 +56,71 @@ fn parse_expr(expr: &Expr) -> Result<LogicalExpr, ZakuError> {
             let l = parse_expr(left)?;
             let r = parse_expr(right)?;
             match op {
-                BinaryOperator::Plus => Ok(LogicalExpr::BinaryExpr(BinaryExpr::Add(
-                    MathExpr::new("add".to_string(), l, "+".to_string(), r),
-                ))),
-                BinaryOperator::Minus => Ok(LogicalExpr::BinaryExpr(BinaryExpr::Sub(
-                    MathExpr::new("sub".to_string(), l, "-".to_string(), r),
-                ))),
-                BinaryOperator::Multiply => Ok(LogicalExpr::BinaryExpr(BinaryExpr::Mul(
-                    MathExpr::new("mul".to_string(), l, "*".to_string(), r),
-                ))),
-                BinaryOperator::Divide => Ok(LogicalExpr::BinaryExpr(BinaryExpr::Div(
-                    MathExpr::new("div".to_string(), l, "/".to_string(), r),
-                ))),
-                BinaryOperator::Modulo => Ok(LogicalExpr::BinaryExpr(BinaryExpr::Mod(
-                    MathExpr::new("mod".to_string(), l, "%".to_string(), r),
-                ))),
-                BinaryOperator::And => Ok(LogicalExpr::BinaryExpr(BinaryExpr::And(
-                    BooleanExpr::new("and".to_string(), l, "AND".to_string(), r),
-                ))),
-                BinaryOperator::Or => Ok(LogicalExpr::BinaryExpr(BinaryExpr::Or(
-                    BooleanExpr::new("or".to_string(), l, "OR".to_string(), r),
-                ))),
-                BinaryOperator::Gt => Ok(LogicalExpr::BinaryExpr(BinaryExpr::Gt(
-                    BooleanExpr::new("gt".to_string(), l, ">".to_string(), r),
-                ))),
-                BinaryOperator::GtEq => Ok(LogicalExpr::BinaryExpr(BinaryExpr::Gte(
-                    BooleanExpr::new("gte".to_string(), l, ">=".to_string(), r),
-                ))),
-                BinaryOperator::Lt => Ok(LogicalExpr::BinaryExpr(BinaryExpr::Lt(
-                    BooleanExpr::new("lt".to_string(), l, "<".to_string(), r),
-                ))),
-                BinaryOperator::LtEq => Ok(LogicalExpr::BinaryExpr(BinaryExpr::Lte(
-                    BooleanExpr::new("lte".to_string(), l, "<=".to_string(), r),
-                ))),
-                BinaryOperator::Eq => Ok(LogicalExpr::BinaryExpr(BinaryExpr::Eq(
-                    BooleanExpr::new("eq".to_string(), l, "=".to_string(), r),
-                ))),
-                BinaryOperator::NotEq => Ok(LogicalExpr::BinaryExpr(BinaryExpr::Neq(
-                    BooleanExpr::new("neq".to_string(), l, "<>".to_string(), r),
-                ))),
+                BinaryOperator::Plus => Ok(LogicalExpr::BinaryExpr(
+                    BinaryExpr::Add(MathExpr::new("add".to_string(), l, "+".to_string(), r)),
+                    None,
+                )),
+                BinaryOperator::Minus => Ok(LogicalExpr::BinaryExpr(
+                    BinaryExpr::Sub(MathExpr::new("sub".to_string(), l, "-".to_string(), r)),
+                    None,
+                )),
+                BinaryOperator::Multiply => Ok(LogicalExpr::BinaryExpr(
+                    BinaryExpr::Mul(MathExpr::new("mul".to_string(), l, "*".to_string(), r)),
+                    None,
+                )),
+                BinaryOperator::Divide => Ok(LogicalExpr::BinaryExpr(
+                    BinaryExpr::Div(MathExpr::new("div".to_string(), l, "/".to_string(), r)),
+                    None,
+                )),
+                BinaryOperator::Modulo => Ok(LogicalExpr::BinaryExpr(
+                    BinaryExpr::Mod(MathExpr::new("mod".to_string(), l, "%".to_string(), r)),
+                    None,
+                )),
+                BinaryOperator::And => Ok(LogicalExpr::BinaryExpr(
+                    BinaryExpr::And(BooleanExpr::new("and".to_string(), l, "AND".to_string(), r)),
+                    None,
+                )),
+                BinaryOperator::Or => Ok(LogicalExpr::BinaryExpr(
+                    BinaryExpr::Or(BooleanExpr::new("or".to_string(), l, "OR".to_string(), r)),
+                    None,
+                )),
+                BinaryOperator::Gt => Ok(LogicalExpr::BinaryExpr(
+                    BinaryExpr::Gt(BooleanExpr::new("gt".to_string(), l, ">".to_string(), r)),
+                    None,
+                )),
+                BinaryOperator::GtEq => Ok(LogicalExpr::BinaryExpr(
+                    BinaryExpr::Gte(BooleanExpr::new("gte".to_string(), l, ">=".to_string(), r)),
+                    None,
+                )),
+                BinaryOperator::Lt => Ok(LogicalExpr::BinaryExpr(
+                    BinaryExpr::Lt(BooleanExpr::new("lt".to_string(), l, "<".to_string(), r)),
+                    None,
+                )),
+                BinaryOperator::LtEq => Ok(LogicalExpr::BinaryExpr(
+                    BinaryExpr::Lte(BooleanExpr::new("lte".to_string(), l, "<=".to_string(), r)),
+                    None,
+                )),
+                BinaryOperator::Eq => Ok(LogicalExpr::BinaryExpr(
+                    BinaryExpr::Eq(BooleanExpr::new("eq".to_string(), l, "=".to_string(), r)),
+                    None,
+                )),
+                BinaryOperator::NotEq => Ok(LogicalExpr::BinaryExpr(
+                    BinaryExpr::Neq(BooleanExpr::new("neq".to_string(), l, "<>".to_string(), r)),
+                    None,
+                )),
                 _ => Err(ZakuError::new("Unsupported operator".to_string())),
             }
         }
-        Expr::Identifier(ident) => Ok(LogicalExpr::Column(Column::new(ident.value.clone()))),
+        Expr::Identifier(ident) => Ok(LogicalExpr::Column(Column::new(ident.value.clone()), None)),
         Expr::Value(value) => match value {
-            sqlparser::ast::Value::Boolean(b) => Ok(LogicalExpr::LiteralBoolean(*b)),
+            sqlparser::ast::Value::Boolean(b) => Ok(LogicalExpr::LiteralBoolean(*b, None)),
             sqlparser::ast::Value::Number(n, _) => Ok(LogicalExpr::LiteralFloat(
                 n.parse::<f32>().expect("Value should be a float"),
+                None,
             )),
-            sqlparser::ast::Value::SingleQuotedString(s) => Ok(LogicalExpr::LiteralText(s.clone())),
+            sqlparser::ast::Value::SingleQuotedString(s) => {
+                Ok(LogicalExpr::LiteralText(s.clone(), None))
+            }
             _ => Err(ZakuError::new("Unsupported value".to_string())),
         },
         Expr::Nested(expr) => parse_expr(expr),
@@ -126,9 +135,9 @@ fn create_df(select: &Box<Select>, dataframe: Dataframe) -> Result<Dataframe, Za
         df = df.filter(selection?)?;
     }
 
-    let (projections, aliases) = parse_projection(select)?;
+    let projections = parse_projection(select)?;
     if projections.len() > 0 {
-        df = df.projection(projections, aliases)?;
+        df = df.projection(projections)?;
     }
 
     Ok(df)

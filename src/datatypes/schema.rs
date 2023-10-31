@@ -17,6 +17,14 @@ impl Field {
         }
     }
 
+    pub fn with_alias(name: String, alias: Option<String>, datatype: DataType) -> Field {
+        Field {
+            name,
+            alias,
+            datatype,
+        }
+    }
+
     pub fn set_alias(&self, alias: Option<String>) -> Field {
         Field {
             name: self.name.clone(),
