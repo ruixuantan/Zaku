@@ -86,3 +86,63 @@ pub fn prettify(record_batch: &RecordBatch) -> String {
 
     results.join("\n")
 }
+
+#[cfg(test)]
+mod test {
+    use std::sync::Arc;
+
+    use super::{compute_cell_space, get_divider, pad_value};
+    use crate::datatypes::{
+        column_vector::{ColumnVector, Vector},
+        record_batch::RecordBatch,
+        schema::{Field, Schema},
+        types::{DataType, Value},
+    };
+
+    #[test]
+    fn test_compute_cell_space() {
+        let schema = Schema::new(vec![
+            Field::new("id".to_string(), DataType::Integer),
+            Field::new("name".to_string(), DataType::Text),
+            Field::new("age".to_string(), DataType::Integer),
+        ]);
+        let record_batch = RecordBatch::new(
+            schema.clone(),
+            vec![
+                Arc::new(Vector::ColumnVector(ColumnVector::new(
+                    DataType::Integer,
+                    vec![Value::Integer(1), Value::Integer(2), Value::Integer(3)],
+                ))),
+                Arc::new(Vector::ColumnVector(ColumnVector::new(
+                    DataType::Text,
+                    vec![
+                        Value::Text("Alice".to_string()),
+                        Value::Text("Bob".to_string()),
+                        Value::Text("Charlie".to_string()),
+                    ],
+                ))),
+                Arc::new(Vector::ColumnVector(ColumnVector::new(
+                    DataType::Integer,
+                    vec![Value::Integer(20), Value::Integer(21), Value::Integer(22)],
+                ))),
+            ],
+        );
+        let cell_space = compute_cell_space(&schema, &record_batch);
+        assert_eq!(cell_space, vec![2, 7, 3]);
+    }
+
+    #[test]
+    fn test_pad_value() {
+        let value = "hello".to_string();
+        let space = 10;
+        let padded_value = pad_value(value, space);
+        assert_eq!(padded_value, " hello      ");
+    }
+
+    #[test]
+    fn test_get_divider() {
+        let cell_space = vec![1, 2, 3];
+        let divider = get_divider(&cell_space);
+        assert_eq!(divider, "---+----+-----");
+    }
+}

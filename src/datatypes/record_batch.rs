@@ -64,3 +64,43 @@ impl<'a> Iterator for RecordBatchIterator<'a> {
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+
+    use std::sync::Arc;
+
+    use super::RecordBatch;
+    use crate::datatypes::column_vector::{LiteralVector, Vector};
+    use crate::datatypes::schema::{Field, Schema};
+    use crate::datatypes::types::{DataType, Value};
+
+    #[test]
+    fn test_record_batch_iterator() {
+        let schema = Schema::new(vec![
+            Field::new("id".to_string(), DataType::Integer),
+            Field::new("name".to_string(), DataType::Text),
+        ]);
+        let mut columns = Vec::new();
+        columns.push(Arc::new(Vector::LiteralVector(LiteralVector::new(
+            DataType::Integer,
+            Value::Integer(0),
+            10,
+        ))));
+        columns.push(Arc::new(Vector::LiteralVector(LiteralVector::new(
+            DataType::Text,
+            Value::Text("dummy".to_string()),
+            10,
+        ))));
+        let record_batch = RecordBatch::new(schema, columns);
+
+        for i in 0..record_batch.column_count() + 1 {
+            if i == record_batch.column_count() {
+                assert!(record_batch.get(&i).is_err());
+            } else {
+                let col = record_batch.get(&i).unwrap();
+                assert_eq!(col.size(), 10);
+            }
+        }
+    }
+}
