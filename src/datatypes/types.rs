@@ -1,9 +1,10 @@
 use std::fmt::{Display, Formatter};
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Default)]
 pub enum DataType {
     Integer,
     Float,
+    #[default]
     Text,
     Boolean,
 }

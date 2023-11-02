@@ -50,7 +50,7 @@ impl Datasource {
         let mut fields: Vec<Field> = rdr
             .headers()?
             .iter()
-            .map(|h| Field::new(h.to_string(), DataType::Boolean))
+            .map(|h| Field::new(h.to_string(), DataType::default()))
             .collect();
 
         rdr.records().take(1).try_for_each(|r| {

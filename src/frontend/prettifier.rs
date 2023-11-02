@@ -9,7 +9,7 @@ use crate::datatypes::{
 const DIVIDER: &str = "|";
 
 fn compute_cell_space(schema: &Schema, record_batch: &RecordBatch) -> Vec<usize> {
-    let size: Vec<usize> = schema.fields().iter().map(|f| f.alias().len()).collect();
+    let size = schema.fields().iter().map(|f| f.alias().len());
 
     record_batch
         .iter()
