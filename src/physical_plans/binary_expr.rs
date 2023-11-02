@@ -94,9 +94,6 @@ impl PhysicalExprTrait for MathExpr {
                 self.evaluate_row(l_val, r_val)
             })
             .collect();
-        Arc::new(Vector::ColumnVector(ColumnVector::new(
-            datatype.clone(),
-            vector,
-        )))
+        Arc::new(Vector::ColumnVector(ColumnVector::new(*datatype, vector)))
     }
 }

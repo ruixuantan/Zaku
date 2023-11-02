@@ -28,7 +28,7 @@ impl PhysicalExprTrait for PhysicalExpr {
         let size = batch.row_count();
         match self {
             PhysicalExpr::ColumnExpr(index) => batch
-                .get(&index)
+                .get(index)
                 .expect("Expected column to be in record batch"),
             PhysicalExpr::LiteralTextExpr(value) => {
                 create_literal(Value::Text(value.to_string()), size)

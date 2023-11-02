@@ -59,11 +59,11 @@ impl<'a> Iterator for RecordBatchIterator<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.index >= self.record_batch.column_count() {
-            return None;
+            None
         } else {
             let col = &self.record_batch.columns[self.index];
             self.index += 1;
-            return Some(col);
+            Some(col)
         }
     }
 }
@@ -84,17 +84,18 @@ mod test {
             Field::new("id".to_string(), DataType::Integer),
             Field::new("name".to_string(), DataType::Text),
         ]);
-        let mut columns = Vec::new();
-        columns.push(Arc::new(Vector::LiteralVector(LiteralVector::new(
-            DataType::Integer,
-            Value::Integer(0),
-            10,
-        ))));
-        columns.push(Arc::new(Vector::LiteralVector(LiteralVector::new(
-            DataType::Text,
-            Value::Text("dummy".to_string()),
-            10,
-        ))));
+        let columns = vec![
+            Arc::new(Vector::LiteralVector(LiteralVector::new(
+                DataType::Integer,
+                Value::Integer(0),
+                10,
+            ))),
+            Arc::new(Vector::LiteralVector(LiteralVector::new(
+                DataType::Text,
+                Value::Text("dummy".to_string()),
+                10,
+            ))),
+        ];
         let record_batch = RecordBatch::new(schema, columns);
 
         for i in 0..record_batch.column_count() + 1 {

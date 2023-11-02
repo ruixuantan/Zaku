@@ -89,7 +89,7 @@ impl Schema {
         Ok(&self.fields[*index].datatype)
     }
 
-    pub fn select(&self, fields: &Vec<String>) -> Schema {
+    pub fn select(&self, fields: &[String]) -> Schema {
         let selected_fields = fields
             .iter()
             .map(|f| self.get_field(f))
@@ -137,7 +137,7 @@ mod test {
     #[test]
     fn test_select() {
         let schema = get_schema();
-        let selected_schema = schema.select(&vec!["id".to_string(), "name".to_string()]);
+        let selected_schema = schema.select(&["id".to_string(), "name".to_string()]);
         let ex_fields = vec![
             Field::new("id".to_string(), DataType::Integer),
             Field::new("name".to_string(), DataType::Text),

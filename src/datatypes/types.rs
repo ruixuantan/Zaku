@@ -1,3 +1,5 @@
+use std::fmt::{Display, Formatter};
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum DataType {
     Integer,
@@ -34,26 +36,17 @@ impl Value {
         match datatype {
             DataType::Integer => Value::Integer(
                 val.parse::<i32>()
-                    .expect(format!("Expected integer, got {val}").as_str()),
+                    .unwrap_or_else(|_| panic!("Expected integer, got {val}")),
             ),
             DataType::Float => Value::Float(
                 val.parse::<f32>()
-                    .expect(format!("Expected float, got {val}").as_str()),
+                    .unwrap_or_else(|_| panic!("Expected float, got {val}")),
             ),
             DataType::Boolean => Value::Boolean(
                 val.parse::<bool>()
-                    .expect(format!("Expected boolean, got {val}").as_str()),
+                    .unwrap_or_else(|_| panic!("Expected boolean, got {val}")),
             ),
             DataType::Text => Value::Text(val.to_string()),
-        }
-    }
-
-    pub fn to_string(&self) -> String {
-        match self {
-            Value::Integer(val) => val.to_string(),
-            Value::Float(val) => val.to_string(),
-            Value::Boolean(val) => val.to_string(),
-            Value::Text(val) => val.to_string(),
         }
     }
 
@@ -288,6 +281,17 @@ impl Value {
             },
             Value::Boolean(_) => panic!("Type not supported for modulo"),
             Value::Text(_) => panic!("Type not supported for modulo"),
+        }
+    }
+}
+
+impl Display for Value {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Value::Integer(val) => write!(f, "{}", val),
+            Value::Float(val) => write!(f, "{}", val),
+            Value::Boolean(val) => write!(f, "{}", val),
+            Value::Text(val) => write!(f, "{}", val),
         }
     }
 }

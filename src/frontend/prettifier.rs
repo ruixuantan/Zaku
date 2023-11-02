@@ -33,7 +33,7 @@ fn pad_value(value: String, space: usize) -> String {
     result
 }
 
-fn get_divider(cell_space: &Vec<usize>) -> String {
+fn get_divider(cell_space: &[usize]) -> String {
     cell_space
         .iter()
         .map(|space| {

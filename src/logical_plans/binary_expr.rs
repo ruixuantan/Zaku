@@ -134,12 +134,7 @@ impl BinaryExprTrait for BooleanExpr {
     }
 
     fn to_string(&self) -> String {
-        format!(
-            "{} {} {}",
-            self.l.to_string(),
-            self.op.to_string(),
-            self.r.to_string()
-        )
+        format!("{} {} {}", self.l, self.op.to_string(), self.r)
     }
 
     fn to_physical_expr(&self, input: &LogicalPlan) -> Result<PhysicalExpr, ZakuError> {
@@ -176,12 +171,7 @@ impl BinaryExprTrait for MathExpr {
     }
 
     fn to_string(&self) -> String {
-        format!(
-            "{} {} {}",
-            self.l.to_string(),
-            self.op.to_string(),
-            self.r.to_string()
-        )
+        format!("{} {} {}", self.l, self.op.to_string(), self.r)
     }
 
     fn to_physical_expr(&self, input: &LogicalPlan) -> Result<PhysicalExpr, ZakuError> {
@@ -195,12 +185,12 @@ impl BinaryExprTrait for MathExpr {
 }
 
 fn get_datatype(
-    l: &Box<LogicalExpr>,
-    r: &Box<LogicalExpr>,
+    l: &LogicalExpr,
+    r: &LogicalExpr,
     input: &LogicalPlan,
 ) -> Result<DataType, ZakuError> {
-    let l_field = l.as_ref().to_field(input)?;
-    let r_field = r.as_ref().to_field(input)?;
+    let l_field = l.to_field(input)?;
+    let r_field = r.to_field(input)?;
     let l_datatype = l_field.datatype();
     let r_datatype = r_field.datatype();
     let err = Err(ZakuError::new("Datatypes do not match".to_string()));

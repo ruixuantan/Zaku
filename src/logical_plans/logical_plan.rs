@@ -27,19 +27,19 @@ pub enum LogicalPlan {
 }
 
 impl LogicalPlan {
-    fn to_string(&self) -> String {
-        match self {
-            LogicalPlan::Scan(scan) => scan.to_string(),
-            LogicalPlan::Projection(projection) => projection.to_string(),
-            LogicalPlan::Filter(filter) => filter.to_string(),
-        }
-    }
+    // fn to_string(&self) -> String {
+    //     match self {
+    //         LogicalPlan::Scan(scan) => scan.to_string(),
+    //         LogicalPlan::Projection(projection) => projection.to_string(),
+    //         LogicalPlan::Filter(filter) => filter.to_string(),
+    //     }
+    // }
 
     fn format(plan: &LogicalPlan, indent: usize) -> String {
         let mut s = String::new();
-        (0..indent).for_each(|_| s.push_str("\t"));
-        s.push_str(plan.to_string().as_str());
-        s.push_str("\n");
+        (0..indent).for_each(|_| s.push('\t'));
+        s.push_str(LogicalPlanTrait::to_string(plan).as_str());
+        s.push('\n');
         plan.children().iter().for_each(|p| {
             s.push_str(LogicalPlan::format(p, indent + 1).as_str());
         });
@@ -65,7 +65,11 @@ impl LogicalPlanTrait for LogicalPlan {
     }
 
     fn to_string(&self) -> String {
-        self.to_string()
+        match self {
+            LogicalPlan::Scan(scan) => scan.to_string(),
+            LogicalPlan::Projection(projection) => projection.to_string(),
+            LogicalPlan::Filter(filter) => filter.to_string(),
+        }
     }
 
     fn to_physical_plan(&self) -> Result<PhysicalPlan, ZakuError> {
@@ -115,9 +119,9 @@ impl LogicalPlanTrait for Scan {
 
     fn to_string(&self) -> String {
         if self.projection.is_empty() {
-            return format!("Scan: {} | None", self.path);
+            format!("Scan: {} | None", self.path)
         } else {
-            return format!("Scan: {} | {}", self.path, self.projection.join(", "));
+            format!("Scan: {} | {}", self.path, self.projection.join(", "))
         }
     }
 
@@ -163,7 +167,7 @@ impl LogicalPlanTrait for Projection {
             "Projection: {}",
             self.expr
                 .iter()
-                .map(|e| format!("#{}", e.to_string()))
+                .map(|e| format!("{}", e))
                 .collect::<Vec<String>>()
                 .join(", ")
         )
@@ -215,7 +219,7 @@ impl LogicalPlanTrait for Filter {
     }
 
     fn to_string(&self) -> String {
-        format!("Filter: {}", self.expr.to_string())
+        format!("Filter: {}", self.expr)
     }
 
     fn to_physical_plan(&self) -> Result<PhysicalPlan, ZakuError> {

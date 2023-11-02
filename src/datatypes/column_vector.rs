@@ -92,11 +92,11 @@ impl<'a> Iterator for ColumnVectorIterator<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.index >= self.column_vector.size() {
-            return None;
+            None
         } else {
             let val = &self.column_vector.values[self.index];
             self.index += 1;
-            return Some(val);
+            Some(val)
         }
     }
 }
@@ -156,10 +156,10 @@ impl<'a> Iterator for LiteralVectorIterator<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.index >= self.literal_vector.size {
-            return None;
+            None
         } else {
             self.index += 1;
-            return Some(&self.literal_vector.value);
+            Some(&self.literal_vector.value)
         }
     }
 }

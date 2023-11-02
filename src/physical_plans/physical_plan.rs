@@ -153,7 +153,7 @@ impl PhysicalPlanTrait for FilterExec {
             .iter()
             .map(|c| {
                 Arc::new(Vector::ColumnVector(ColumnVector::new(
-                    c.get_type().clone(),
+                    *c.get_type(),
                     c.iter()
                         .enumerate()
                         .filter(|(i, _)| eval_col.get_value(i) == &Value::Boolean(true))

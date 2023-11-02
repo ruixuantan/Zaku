@@ -82,10 +82,9 @@ impl Datasource {
             .enumerate()
             .map(|(i, c)| {
                 Arc::new(Vector::ColumnVector(ColumnVector::new(
-                    schema
+                    *schema
                         .get_datatype_from_index(&i)
-                        .expect("Index out of bounds")
-                        .clone(),
+                        .expect("Index out of bounds"),
                     c,
                 )))
             })
@@ -139,14 +138,11 @@ mod test {
         let ex_cols = vec![
             Arc::new(Vector::ColumnVector(ColumnVector::new(
                 DataType::Integer,
-                vec![1, 2, 3, 4, 5]
-                    .iter()
-                    .map(|i| Value::Integer(*i))
-                    .collect(),
+                [1, 2, 3, 4, 5].iter().map(|i| Value::Integer(*i)).collect(),
             ))),
             Arc::new(Vector::ColumnVector(ColumnVector::new(
                 DataType::Text,
-                vec![
+                [
                     "toothbrush",
                     "toothpaste",
                     "shampoo",
@@ -159,21 +155,21 @@ mod test {
             ))),
             Arc::new(Vector::ColumnVector(ColumnVector::new(
                 DataType::Boolean,
-                vec![true, true, true, false, true]
+                [true, true, true, false, true]
                     .iter()
                     .map(|b| Value::Boolean(*b))
                     .collect(),
             ))),
             Arc::new(Vector::ColumnVector(ColumnVector::new(
                 DataType::Float,
-                vec![5.00, 10.00, 15.50, 2.00, 20.00]
+                [5.00, 10.00, 15.50, 2.00, 20.00]
                     .iter()
                     .map(|f| Value::Float(*f))
                     .collect(),
             ))),
             Arc::new(Vector::ColumnVector(ColumnVector::new(
                 DataType::Integer,
-                vec![100, 50, 25, 0, 10]
+                [100, 50, 25, 0, 10]
                     .iter()
                     .map(|i| Value::Integer(*i))
                     .collect(),

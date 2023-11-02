@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::{
     datatypes::{schema::Field, types::DataType},
     error::ZakuError,
@@ -59,17 +61,6 @@ impl LogicalExpr {
         }
     }
 
-    pub fn to_string(&self) -> String {
-        match self {
-            LogicalExpr::Column(column, alias) => LogicalExpr::fmt(column.name().clone(), alias),
-            LogicalExpr::LiteralText(value, alias) => LogicalExpr::fmt(value.clone(), alias),
-            LogicalExpr::LiteralBoolean(value, alias) => LogicalExpr::fmt(value.to_string(), alias),
-            LogicalExpr::LiteralInteger(value, alias) => LogicalExpr::fmt(value.to_string(), alias),
-            LogicalExpr::LiteralFloat(value, alias) => LogicalExpr::fmt(value.to_string(), alias),
-            LogicalExpr::BinaryExpr(expr, alias) => LogicalExpr::fmt(expr.to_string(), alias),
-        }
-    }
-
     pub fn to_physical_expr(&self, input: &LogicalPlan) -> Result<PhysicalExpr, ZakuError> {
         match self {
             LogicalExpr::Column(column, _) => column.column_to_physical_expr(input),
@@ -99,6 +90,21 @@ impl LogicalExpr {
     }
 }
 
+impl Display for LogicalExpr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let string = match self {
+            LogicalExpr::Column(column, alias) => {
+                format!("#{}", LogicalExpr::fmt(column.name().clone(), alias))
+            }
+            LogicalExpr::LiteralText(value, alias) => LogicalExpr::fmt(value.clone(), alias),
+            LogicalExpr::LiteralBoolean(value, alias) => LogicalExpr::fmt(value.to_string(), alias),
+            LogicalExpr::LiteralInteger(value, alias) => LogicalExpr::fmt(value.to_string(), alias),
+            LogicalExpr::LiteralFloat(value, alias) => LogicalExpr::fmt(value.to_string(), alias),
+            LogicalExpr::BinaryExpr(expr, alias) => LogicalExpr::fmt(expr.to_string(), alias),
+        };
+        write!(f, "{}", string)
+    }
+}
 #[derive(Debug, Clone)]
 pub struct Column {
     name: String,

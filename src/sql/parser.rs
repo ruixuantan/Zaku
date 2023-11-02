@@ -22,14 +22,15 @@ fn parse_select(sql: &str) -> Result<Box<Select>, ZakuError> {
     }
 }
 
-fn parse_projection(select: &Box<Select>) -> Result<Vec<LogicalExpr>, ZakuError> {
+fn parse_projection(select: &Select) -> Result<Vec<LogicalExpr>, ZakuError> {
     let logical_expr = select
         .projection
         .iter()
-        .filter(|item| match item {
-            SelectItem::UnnamedExpr(_) => true,
-            SelectItem::ExprWithAlias { expr: _, alias: _ } => true,
-            _ => false,
+        .filter(|item| {
+            matches!(
+                item,
+                SelectItem::UnnamedExpr(_) | SelectItem::ExprWithAlias { expr: _, alias: _ }
+            )
         })
         .map(|item| match item {
             SelectItem::UnnamedExpr(expr) => parse_expr(expr),
@@ -66,15 +67,15 @@ fn parse_expr(expr: &Expr) -> Result<LogicalExpr, ZakuError> {
     }
 }
 
-fn create_df(select: &Box<Select>, dataframe: Dataframe) -> Result<Dataframe, ZakuError> {
+fn create_df(select: &Select, dataframe: Dataframe) -> Result<Dataframe, ZakuError> {
     let mut df = dataframe;
-    let selection = select.selection.as_ref().map(|expr| parse_expr(expr));
+    let selection = select.selection.as_ref().map(parse_expr);
     if let Some(selection) = selection {
         df = df.filter(selection?)?;
     }
 
     let projections = parse_projection(select)?;
-    if projections.len() > 0 {
+    if !projections.is_empty() {
         df = df.projection(projections)?;
     }
 
