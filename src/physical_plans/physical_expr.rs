@@ -8,6 +8,10 @@ use crate::datatypes::{
 
 use super::binary_expr::{BooleanExpr, MathExpr};
 
+pub trait PhysicalExprTrait {
+    fn evaluate(&self, batch: &RecordBatch) -> Arc<Vector>;
+}
+
 #[derive(Clone)]
 pub enum PhysicalExpr {
     ColumnExpr(usize),
@@ -19,8 +23,8 @@ pub enum PhysicalExpr {
     MathExpr(MathExpr),
 }
 
-impl PhysicalExpr {
-    pub fn evaluate(&self, batch: &RecordBatch) -> Arc<Vector> {
+impl PhysicalExprTrait for PhysicalExpr {
+    fn evaluate(&self, batch: &RecordBatch) -> Arc<Vector> {
         let size = batch.row_count();
         match self {
             PhysicalExpr::ColumnExpr(index) => batch

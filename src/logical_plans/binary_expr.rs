@@ -1,10 +1,21 @@
+use sqlparser::ast::BinaryOperator;
+
 use crate::{
     datatypes::{schema::Field, types::DataType},
     error::ZakuError,
-    physical_plans::{self, binary_expr::BooleanOp, physical_expr::PhysicalExpr},
+    physical_plans::{self, physical_expr::PhysicalExpr},
+    sql::operators::{BinaryOp, BooleanOp, MathOp},
 };
 
 use super::{logical_expr::LogicalExpr, logical_plan::LogicalPlan};
+
+pub trait BinaryExprTrait {
+    fn to_field(&self, input: &LogicalPlan) -> Result<Field, ZakuError>;
+
+    fn to_string(&self) -> String;
+
+    fn to_physical_expr(&self, input: &LogicalPlan) -> Result<PhysicalExpr, ZakuError>;
+}
 
 #[derive(Debug, Clone)]
 pub enum BinaryExpr {
@@ -24,16 +35,37 @@ pub enum BinaryExpr {
 }
 
 impl BinaryExpr {
-    pub fn to_field(&self, input: &LogicalPlan) -> Result<Field, ZakuError> {
+    pub fn new(l: LogicalExpr, op: &BinaryOperator, r: LogicalExpr) -> Result<Self, ZakuError> {
+        match op {
+            BinaryOperator::And => Ok(BinaryExpr::And(BooleanExpr::new(l, BooleanOp::And, r))),
+            BinaryOperator::Or => Ok(BinaryExpr::Or(BooleanExpr::new(l, BooleanOp::Or, r))),
+            BinaryOperator::Eq => Ok(BinaryExpr::Eq(BooleanExpr::new(l, BooleanOp::Eq, r))),
+            BinaryOperator::NotEq => Ok(BinaryExpr::Neq(BooleanExpr::new(l, BooleanOp::Neq, r))),
+            BinaryOperator::Gt => Ok(BinaryExpr::Gt(BooleanExpr::new(l, BooleanOp::Gt, r))),
+            BinaryOperator::GtEq => Ok(BinaryExpr::Gte(BooleanExpr::new(l, BooleanOp::Gte, r))),
+            BinaryOperator::Lt => Ok(BinaryExpr::Lt(BooleanExpr::new(l, BooleanOp::Lt, r))),
+            BinaryOperator::LtEq => Ok(BinaryExpr::Lte(BooleanExpr::new(l, BooleanOp::Lte, r))),
+            BinaryOperator::Plus => Ok(BinaryExpr::Add(MathExpr::new(l, MathOp::Add, r))),
+            BinaryOperator::Minus => Ok(BinaryExpr::Sub(MathExpr::new(l, MathOp::Sub, r))),
+            BinaryOperator::Multiply => Ok(BinaryExpr::Mul(MathExpr::new(l, MathOp::Mul, r))),
+            BinaryOperator::Divide => Ok(BinaryExpr::Div(MathExpr::new(l, MathOp::Div, r))),
+            BinaryOperator::Modulo => Ok(BinaryExpr::Mod(MathExpr::new(l, MathOp::Mod, r))),
+            _ => Err(ZakuError::new("Invalid operator".to_string())),
+        }
+    }
+}
+
+impl BinaryExprTrait for BinaryExpr {
+    fn to_field(&self, input: &LogicalPlan) -> Result<Field, ZakuError> {
         match self {
-            BinaryExpr::And(expr) => expr.to_field(),
-            BinaryExpr::Or(expr) => expr.to_field(),
-            BinaryExpr::Eq(expr) => expr.to_field(),
-            BinaryExpr::Neq(expr) => expr.to_field(),
-            BinaryExpr::Gt(expr) => expr.to_field(),
-            BinaryExpr::Gte(expr) => expr.to_field(),
-            BinaryExpr::Lt(expr) => expr.to_field(),
-            BinaryExpr::Lte(expr) => expr.to_field(),
+            BinaryExpr::And(expr) => expr.to_field(input),
+            BinaryExpr::Or(expr) => expr.to_field(input),
+            BinaryExpr::Eq(expr) => expr.to_field(input),
+            BinaryExpr::Neq(expr) => expr.to_field(input),
+            BinaryExpr::Gt(expr) => expr.to_field(input),
+            BinaryExpr::Gte(expr) => expr.to_field(input),
+            BinaryExpr::Lt(expr) => expr.to_field(input),
+            BinaryExpr::Lte(expr) => expr.to_field(input),
             BinaryExpr::Add(expr) => expr.to_field(input),
             BinaryExpr::Sub(expr) => expr.to_field(input),
             BinaryExpr::Mul(expr) => expr.to_field(input),
@@ -42,7 +74,7 @@ impl BinaryExpr {
         }
     }
 
-    pub fn to_string(&self) -> String {
+    fn to_string(&self) -> String {
         match self {
             BinaryExpr::And(expr) => expr.to_string(),
             BinaryExpr::Or(expr) => expr.to_string(),
@@ -60,7 +92,7 @@ impl BinaryExpr {
         }
     }
 
-    pub fn to_physical_expr(&self, input: &LogicalPlan) -> Result<PhysicalExpr, ZakuError> {
+    fn to_physical_expr(&self, input: &LogicalPlan) -> Result<PhysicalExpr, ZakuError> {
         match self {
             BinaryExpr::And(expr) => expr.to_physical_expr(input),
             BinaryExpr::Or(expr) => expr.to_physical_expr(input),
@@ -81,76 +113,83 @@ impl BinaryExpr {
 
 #[derive(Debug, Clone)]
 pub struct BooleanExpr {
-    name: String,
     l: Box<LogicalExpr>,
-    op: String,
+    op: BooleanOp,
     r: Box<LogicalExpr>,
 }
 
 impl BooleanExpr {
-    pub fn new(name: String, l: LogicalExpr, op: String, r: LogicalExpr) -> BooleanExpr {
+    fn new(l: LogicalExpr, op: BooleanOp, r: LogicalExpr) -> BooleanExpr {
         BooleanExpr {
-            name,
             l: Box::new(l),
             op,
             r: Box::new(r),
         }
     }
+}
 
-    pub fn to_field(&self) -> Result<Field, ZakuError> {
-        Ok(Field::new(self.name.clone(), DataType::Boolean))
+impl BinaryExprTrait for BooleanExpr {
+    fn to_field(&self, _input: &LogicalPlan) -> Result<Field, ZakuError> {
+        Ok(Field::new(self.op.name(), DataType::Boolean))
     }
 
-    pub fn to_string(&self) -> String {
-        format!("{} {} {}", self.l.to_string(), self.op, self.r.to_string())
+    fn to_string(&self) -> String {
+        format!(
+            "{} {} {}",
+            self.l.to_string(),
+            self.op.to_string(),
+            self.r.to_string()
+        )
     }
 
-    pub fn to_physical_expr(&self, input: &LogicalPlan) -> Result<PhysicalExpr, ZakuError> {
+    fn to_physical_expr(&self, input: &LogicalPlan) -> Result<PhysicalExpr, ZakuError> {
         get_datatype(&self.l, &self.r, input)?;
         let l = self.l.to_physical_expr(input)?;
         let r = self.r.to_physical_expr(input)?;
-        let op = BooleanOp::from_str(&self.op)?;
         Ok(PhysicalExpr::BooleanExpr(
-            physical_plans::binary_expr::BooleanExpr::new(Box::new(l), op, Box::new(r)),
+            physical_plans::binary_expr::BooleanExpr::new(Box::new(l), self.op, Box::new(r)),
         ))
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct MathExpr {
-    name: String,
     l: Box<LogicalExpr>,
-    op: String,
+    op: MathOp,
     r: Box<LogicalExpr>,
 }
 
 impl MathExpr {
-    pub fn new(name: String, l: LogicalExpr, op: String, r: LogicalExpr) -> MathExpr {
+    fn new(l: LogicalExpr, op: MathOp, r: LogicalExpr) -> MathExpr {
         MathExpr {
-            name,
             l: Box::new(l),
             op,
             r: Box::new(r),
         }
     }
+}
 
-    pub fn to_field(&self, input: &LogicalPlan) -> Result<Field, ZakuError> {
+impl BinaryExprTrait for MathExpr {
+    fn to_field(&self, input: &LogicalPlan) -> Result<Field, ZakuError> {
         let datatype = get_datatype(&self.l, &self.r, input)?;
-        Ok(Field::new(self.name.clone(), datatype))
+        Ok(Field::new(self.op.name(), datatype))
     }
 
-    pub fn to_string(&self) -> String {
-        format!("{} {} {}", self.l.to_string(), self.op, self.r.to_string())
+    fn to_string(&self) -> String {
+        format!(
+            "{} {} {}",
+            self.l.to_string(),
+            self.op.to_string(),
+            self.r.to_string()
+        )
     }
 
-    pub fn to_physical_expr(&self, input: &LogicalPlan) -> Result<PhysicalExpr, ZakuError> {
+    fn to_physical_expr(&self, input: &LogicalPlan) -> Result<PhysicalExpr, ZakuError> {
         let l = self.l.to_physical_expr(input)?;
         let r = self.r.to_physical_expr(input)?;
 
-        let _ = get_datatype(&self.l, &self.r, input)?;
-        let op = physical_plans::binary_expr::MathOp::from_str(&self.op)?;
         Ok(PhysicalExpr::MathExpr(
-            physical_plans::binary_expr::MathExpr::new(Box::new(l), op, Box::new(r)),
+            physical_plans::binary_expr::MathExpr::new(Box::new(l), self.op, Box::new(r)),
         ))
     }
 }

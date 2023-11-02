@@ -1,14 +1,9 @@
-use sqlparser::{
-    ast::Expr,
-    ast::Select,
-    ast::Statement,
-    ast::{BinaryOperator, SelectItem},
-};
+use sqlparser::{ast::Expr, ast::Select, ast::SelectItem, ast::Statement};
 
 use crate::{
     error::ZakuError,
     logical_plans::{
-        binary_expr::{BinaryExpr, BooleanExpr, MathExpr},
+        binary_expr::BinaryExpr,
         dataframe::Dataframe,
         logical_expr::{Column, LogicalExpr},
     },
@@ -17,17 +12,14 @@ use crate::{
 fn parse_select(sql: &str) -> Result<Box<Select>, ZakuError> {
     let dialect = sqlparser::dialect::GenericDialect {};
 
-    let ast = sqlparser::parser::Parser::parse_sql(&dialect, sql)
-        .map_err(|e| ZakuError::new(e.to_string()))?;
-    let select_stmt = match &ast[0] {
+    let ast = sqlparser::parser::Parser::parse_sql(&dialect, sql)?;
+    match &ast[0] {
         Statement::Query(query) => match &*query.body {
-            sqlparser::ast::SetExpr::Select(s) => s.clone(),
-            _ => return Err(ZakuError::new("Not a select query".to_string())),
+            sqlparser::ast::SetExpr::Select(s) => Ok(s.clone()),
+            _ => Err(ZakuError::new("Not a select query".to_string())),
         },
-        _ => return Err(ZakuError::new("Not a query".to_string())),
-    };
-
-    Ok(select_stmt)
+        _ => Err(ZakuError::new("Not a query".to_string())),
+    }
 }
 
 fn parse_projection(select: &Box<Select>) -> Result<Vec<LogicalExpr>, ZakuError> {
@@ -55,61 +47,7 @@ fn parse_expr(expr: &Expr) -> Result<LogicalExpr, ZakuError> {
         Expr::BinaryOp { left, op, right } => {
             let l = parse_expr(left)?;
             let r = parse_expr(right)?;
-            match op {
-                BinaryOperator::Plus => Ok(LogicalExpr::BinaryExpr(
-                    BinaryExpr::Add(MathExpr::new("add".to_string(), l, "+".to_string(), r)),
-                    None,
-                )),
-                BinaryOperator::Minus => Ok(LogicalExpr::BinaryExpr(
-                    BinaryExpr::Sub(MathExpr::new("sub".to_string(), l, "-".to_string(), r)),
-                    None,
-                )),
-                BinaryOperator::Multiply => Ok(LogicalExpr::BinaryExpr(
-                    BinaryExpr::Mul(MathExpr::new("mul".to_string(), l, "*".to_string(), r)),
-                    None,
-                )),
-                BinaryOperator::Divide => Ok(LogicalExpr::BinaryExpr(
-                    BinaryExpr::Div(MathExpr::new("div".to_string(), l, "/".to_string(), r)),
-                    None,
-                )),
-                BinaryOperator::Modulo => Ok(LogicalExpr::BinaryExpr(
-                    BinaryExpr::Mod(MathExpr::new("mod".to_string(), l, "%".to_string(), r)),
-                    None,
-                )),
-                BinaryOperator::And => Ok(LogicalExpr::BinaryExpr(
-                    BinaryExpr::And(BooleanExpr::new("and".to_string(), l, "AND".to_string(), r)),
-                    None,
-                )),
-                BinaryOperator::Or => Ok(LogicalExpr::BinaryExpr(
-                    BinaryExpr::Or(BooleanExpr::new("or".to_string(), l, "OR".to_string(), r)),
-                    None,
-                )),
-                BinaryOperator::Gt => Ok(LogicalExpr::BinaryExpr(
-                    BinaryExpr::Gt(BooleanExpr::new("gt".to_string(), l, ">".to_string(), r)),
-                    None,
-                )),
-                BinaryOperator::GtEq => Ok(LogicalExpr::BinaryExpr(
-                    BinaryExpr::Gte(BooleanExpr::new("gte".to_string(), l, ">=".to_string(), r)),
-                    None,
-                )),
-                BinaryOperator::Lt => Ok(LogicalExpr::BinaryExpr(
-                    BinaryExpr::Lt(BooleanExpr::new("lt".to_string(), l, "<".to_string(), r)),
-                    None,
-                )),
-                BinaryOperator::LtEq => Ok(LogicalExpr::BinaryExpr(
-                    BinaryExpr::Lte(BooleanExpr::new("lte".to_string(), l, "<=".to_string(), r)),
-                    None,
-                )),
-                BinaryOperator::Eq => Ok(LogicalExpr::BinaryExpr(
-                    BinaryExpr::Eq(BooleanExpr::new("eq".to_string(), l, "=".to_string(), r)),
-                    None,
-                )),
-                BinaryOperator::NotEq => Ok(LogicalExpr::BinaryExpr(
-                    BinaryExpr::Neq(BooleanExpr::new("neq".to_string(), l, "<>".to_string(), r)),
-                    None,
-                )),
-                _ => Err(ZakuError::new("Unsupported operator".to_string())),
-            }
+            Ok(LogicalExpr::BinaryExpr(BinaryExpr::new(l, op, r)?, None))
         }
         Expr::Identifier(ident) => Ok(LogicalExpr::Column(Column::new(ident.value.clone()), None)),
         Expr::Value(value) => match value {

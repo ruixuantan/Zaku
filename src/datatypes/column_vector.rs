@@ -1,37 +1,47 @@
 use super::types::{DataType, Value};
 
+pub trait VectorTrait {
+    fn get_type(&self) -> &DataType;
+
+    fn get_value(&self, index: &usize) -> &Value;
+
+    fn iter(&self) -> Box<dyn Iterator<Item = &Value> + '_>;
+
+    fn size(&self) -> usize;
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum Vector {
     ColumnVector(ColumnVector),
     LiteralVector(LiteralVector),
 }
 
-impl Vector {
-    pub fn get_type(&self) -> &DataType {
+impl VectorTrait for Vector {
+    fn get_type(&self) -> &DataType {
         match self {
             Vector::ColumnVector(vector) => vector.get_type(),
-            Vector::LiteralVector(vector) => &vector.datatype,
+            Vector::LiteralVector(vector) => vector.get_type(),
         }
     }
 
-    pub fn get_value(&self, index: &usize) -> &Value {
+    fn get_value(&self, index: &usize) -> &Value {
         match self {
             Vector::ColumnVector(vector) => vector.get_value(index),
             Vector::LiteralVector(vector) => vector.get_value(index),
         }
     }
 
-    pub fn iter(&self) -> Box<dyn Iterator<Item = &Value> + '_> {
+    fn iter(&self) -> Box<dyn Iterator<Item = &Value> + '_> {
         match self {
             Vector::ColumnVector(vector) => Box::new(vector.iter()),
             Vector::LiteralVector(vector) => Box::new(vector.iter()),
         }
     }
 
-    pub fn size(&self) -> usize {
+    fn size(&self) -> usize {
         match self {
             Vector::ColumnVector(vector) => vector.size(),
-            Vector::LiteralVector(vector) => vector.size,
+            Vector::LiteralVector(vector) => vector.size(),
         }
     }
 }
@@ -46,31 +56,29 @@ impl ColumnVector {
     pub fn new(datatype: DataType, values: Vec<Value>) -> ColumnVector {
         ColumnVector { datatype, values }
     }
+}
 
-    pub fn get_type(&self) -> &DataType {
+impl VectorTrait for ColumnVector {
+    fn get_type(&self) -> &DataType {
         &self.datatype
     }
 
-    pub fn get_value(&self, index: &usize) -> &Value {
+    fn get_value(&self, index: &usize) -> &Value {
         if *index >= self.values.len() {
             panic!("Index out of bounds");
         }
         &self.values[*index]
     }
 
-    pub fn size(&self) -> usize {
+    fn size(&self) -> usize {
         self.values.len()
     }
 
-    pub fn add(&mut self, value: Value) {
-        self.values.push(value);
-    }
-
-    pub fn iter(&self) -> ColumnVectorIterator {
-        ColumnVectorIterator {
+    fn iter(&self) -> Box<dyn Iterator<Item = &Value> + '_> {
+        Box::new(ColumnVectorIterator {
             column_vector: self,
             index: 0,
-        }
+        })
     }
 }
 
@@ -109,18 +117,32 @@ impl LiteralVector {
         }
     }
 
-    pub fn get_value(&self, index: &usize) -> &Value {
+    pub fn value(&self) -> &Value {
+        &self.value
+    }
+}
+
+impl VectorTrait for LiteralVector {
+    fn get_value(&self, index: &usize) -> &Value {
         if *index >= self.size {
             panic!("Index out of bounds");
         }
         &self.value
     }
 
-    pub fn iter(&self) -> LiteralVectorIterator {
-        LiteralVectorIterator {
+    fn get_type(&self) -> &DataType {
+        &self.datatype
+    }
+
+    fn size(&self) -> usize {
+        self.size
+    }
+
+    fn iter(&self) -> Box<dyn Iterator<Item = &Value> + '_> {
+        Box::new(LiteralVectorIterator {
             literal_vector: self,
             index: 0,
-        }
+        })
     }
 }
 
@@ -149,7 +171,7 @@ mod test {
         types::{DataType, Value},
     };
 
-    use super::LiteralVector;
+    use super::{LiteralVector, VectorTrait};
 
     #[test]
     fn test_column_vector_iterator() {

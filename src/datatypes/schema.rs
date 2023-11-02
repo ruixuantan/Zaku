@@ -25,16 +25,8 @@ impl Field {
         }
     }
 
-    pub fn set_alias(&self, alias: Option<String>) -> Field {
-        Field {
-            name: self.name.clone(),
-            alias,
-            datatype: self.datatype.clone(),
-        }
-    }
-
-    pub fn get_alias(&self) -> Option<String> {
-        self.alias.clone()
+    pub fn set_alias(&mut self, alias: &Option<String>) {
+        self.alias = alias.clone();
     }
 
     pub fn alias(&self) -> String {
@@ -98,13 +90,12 @@ impl Schema {
     }
 
     pub fn select(&self, fields: &Vec<String>) -> Schema {
-        let mut selected_fields = Vec::new();
-        fields.iter().for_each(|f| {
-            // Ignore fields that don't exist
-            if let Ok(field) = self.get_field(f) {
-                selected_fields.push(field.clone());
-            }
-        });
+        let selected_fields = fields
+            .iter()
+            .map(|f| self.get_field(f))
+            .filter(|f| f.is_ok()) // Ignore fields that don't exist
+            .map(|f| f.expect("Field should be returned as an Ok result").clone())
+            .collect();
         Schema::new(selected_fields)
     }
 }

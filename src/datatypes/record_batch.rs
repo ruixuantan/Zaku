@@ -2,7 +2,10 @@ use std::sync::Arc;
 
 use crate::error::ZakuError;
 
-use super::{column_vector::Vector, schema::Schema};
+use super::{
+    column_vector::{Vector, VectorTrait},
+    schema::Schema,
+};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct RecordBatch {
@@ -71,7 +74,7 @@ mod test {
     use std::sync::Arc;
 
     use super::RecordBatch;
-    use crate::datatypes::column_vector::{LiteralVector, Vector};
+    use crate::datatypes::column_vector::{LiteralVector, Vector, VectorTrait};
     use crate::datatypes::schema::{Field, Schema};
     use crate::datatypes::types::{DataType, Value};
 

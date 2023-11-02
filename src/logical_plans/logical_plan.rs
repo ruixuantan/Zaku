@@ -12,6 +12,13 @@ use crate::{
 
 use super::logical_expr::LogicalExpr;
 
+pub trait LogicalPlanTrait {
+    fn schema(&self) -> Schema;
+    fn children(&self) -> Vec<LogicalPlan>;
+    fn to_string(&self) -> String;
+    fn to_physical_plan(&self) -> Result<PhysicalPlan, ZakuError>;
+}
+
 #[derive(Debug, Clone)]
 pub enum LogicalPlan {
     Scan(Scan),
@@ -20,35 +27,11 @@ pub enum LogicalPlan {
 }
 
 impl LogicalPlan {
-    pub fn schema(&self) -> Schema {
-        match self {
-            LogicalPlan::Scan(scan) => scan.schema(),
-            LogicalPlan::Projection(projection) => projection.schema(),
-            LogicalPlan::Filter(filter) => filter.schema(),
-        }
-    }
-
-    pub fn children(&self) -> Vec<LogicalPlan> {
-        match self {
-            LogicalPlan::Scan(scan) => scan.children(),
-            LogicalPlan::Projection(projection) => projection.children(),
-            LogicalPlan::Filter(filter) => filter.children(),
-        }
-    }
-
-    pub fn to_string(&self) -> String {
+    fn to_string(&self) -> String {
         match self {
             LogicalPlan::Scan(scan) => scan.to_string(),
             LogicalPlan::Projection(projection) => projection.to_string(),
             LogicalPlan::Filter(filter) => filter.to_string(),
-        }
-    }
-
-    pub fn to_physical_plan(&self) -> Result<PhysicalPlan, ZakuError> {
-        match self {
-            LogicalPlan::Scan(scan) => scan.to_physical_plan(),
-            LogicalPlan::Projection(projection) => projection.to_physical_plan(),
-            LogicalPlan::Filter(filter) => filter.to_physical_plan(),
         }
     }
 
@@ -61,6 +44,36 @@ impl LogicalPlan {
             s.push_str(LogicalPlan::format(p, indent + 1).as_str());
         });
         s
+    }
+}
+
+impl LogicalPlanTrait for LogicalPlan {
+    fn schema(&self) -> Schema {
+        match self {
+            LogicalPlan::Scan(scan) => scan.schema(),
+            LogicalPlan::Projection(projection) => projection.schema(),
+            LogicalPlan::Filter(filter) => filter.schema(),
+        }
+    }
+
+    fn children(&self) -> Vec<LogicalPlan> {
+        match self {
+            LogicalPlan::Scan(scan) => scan.children(),
+            LogicalPlan::Projection(projection) => projection.children(),
+            LogicalPlan::Filter(filter) => filter.children(),
+        }
+    }
+
+    fn to_string(&self) -> String {
+        self.to_string()
+    }
+
+    fn to_physical_plan(&self) -> Result<PhysicalPlan, ZakuError> {
+        match self {
+            LogicalPlan::Scan(scan) => scan.to_physical_plan(),
+            LogicalPlan::Projection(projection) => projection.to_physical_plan(),
+            LogicalPlan::Filter(filter) => filter.to_physical_plan(),
+        }
     }
 }
 
@@ -85,8 +98,10 @@ impl Scan {
             projection,
         }
     }
+}
 
-    pub fn schema(&self) -> Schema {
+impl LogicalPlanTrait for Scan {
+    fn schema(&self) -> Schema {
         let mut schema = self.datasource.schema().clone();
         if !self.projection.is_empty() {
             schema = schema.select(&self.projection);
@@ -94,11 +109,11 @@ impl Scan {
         schema
     }
 
-    pub fn children(&self) -> Vec<LogicalPlan> {
+    fn children(&self) -> Vec<LogicalPlan> {
         Vec::new()
     }
 
-    pub fn to_string(&self) -> String {
+    fn to_string(&self) -> String {
         if self.projection.is_empty() {
             return format!("Scan: {} | None", self.path);
         } else {
@@ -106,7 +121,7 @@ impl Scan {
         }
     }
 
-    pub fn to_physical_plan(&self) -> Result<PhysicalPlan, ZakuError> {
+    fn to_physical_plan(&self) -> Result<PhysicalPlan, ZakuError> {
         Ok(PhysicalPlan::Scan(ScanExec::new(
             self.datasource.clone(),
             self.projection.clone(),
@@ -132,16 +147,18 @@ impl Projection {
             expr,
         })
     }
+}
 
-    pub fn schema(&self) -> Schema {
+impl LogicalPlanTrait for Projection {
+    fn schema(&self) -> Schema {
         self.schema.clone()
     }
 
-    pub fn children(&self) -> Vec<LogicalPlan> {
+    fn children(&self) -> Vec<LogicalPlan> {
         vec![*self.logical_plan.clone()]
     }
 
-    pub fn to_string(&self) -> String {
+    fn to_string(&self) -> String {
         format!(
             "Projection: {}",
             self.expr
@@ -152,7 +169,7 @@ impl Projection {
         )
     }
 
-    pub fn to_physical_plan(&self) -> Result<PhysicalPlan, ZakuError> {
+    fn to_physical_plan(&self) -> Result<PhysicalPlan, ZakuError> {
         let physical_plan = self.logical_plan.to_physical_plan()?;
         let projection_fields: Result<Vec<Field>, _> = self
             .expr
@@ -186,20 +203,22 @@ impl Filter {
             expr,
         })
     }
+}
 
-    pub fn schema(&self) -> Schema {
+impl LogicalPlanTrait for Filter {
+    fn schema(&self) -> Schema {
         self.logical_plan.schema()
     }
 
-    pub fn children(&self) -> Vec<LogicalPlan> {
+    fn children(&self) -> Vec<LogicalPlan> {
         vec![*self.logical_plan.clone()]
     }
 
-    pub fn to_string(&self) -> String {
+    fn to_string(&self) -> String {
         format!("Filter: {}", self.expr.to_string())
     }
 
-    pub fn to_physical_plan(&self) -> Result<PhysicalPlan, ZakuError> {
+    fn to_physical_plan(&self) -> Result<PhysicalPlan, ZakuError> {
         let physical_plan = self.logical_plan.to_physical_plan()?;
         let physical_expr = self.expr.to_physical_expr(&self.logical_plan)?;
         Ok(PhysicalPlan::Filter(FilterExec::new(

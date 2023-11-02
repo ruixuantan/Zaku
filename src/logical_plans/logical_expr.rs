@@ -4,7 +4,11 @@ use crate::{
     physical_plans::physical_expr::PhysicalExpr,
 };
 
-use super::{binary_expr::BinaryExpr, logical_plan::LogicalPlan};
+use super::{
+    binary_expr::BinaryExpr,
+    binary_expr::BinaryExprTrait,
+    logical_plan::{LogicalPlan, LogicalPlanTrait},
+};
 
 #[derive(Debug, Clone)]
 pub enum LogicalExpr {
@@ -41,12 +45,14 @@ impl LogicalExpr {
                 DataType::Float,
             )),
             LogicalExpr::BinaryExpr(expr, alias) => {
-                expr.to_field(input).map(|f| f.set_alias(alias.clone()))
+                let mut f = expr.to_field(input)?;
+                f.set_alias(alias);
+                Ok(f)
             }
         }
     }
 
-    fn fmt(root: String, alias: Option<String>) -> String {
+    fn fmt(root: String, alias: &Option<String>) -> String {
         match alias {
             Some(alias) => format!("{} AS {}", root, alias),
             None => root,
@@ -55,24 +61,12 @@ impl LogicalExpr {
 
     pub fn to_string(&self) -> String {
         match self {
-            LogicalExpr::Column(column, alias) => {
-                LogicalExpr::fmt(column.name().clone(), alias.clone())
-            }
-            LogicalExpr::LiteralText(value, alias) => {
-                LogicalExpr::fmt(value.clone(), alias.clone())
-            }
-            LogicalExpr::LiteralBoolean(value, alias) => {
-                LogicalExpr::fmt(value.to_string(), alias.clone())
-            }
-            LogicalExpr::LiteralInteger(value, alias) => {
-                LogicalExpr::fmt(value.to_string(), alias.clone())
-            }
-            LogicalExpr::LiteralFloat(value, alias) => {
-                LogicalExpr::fmt(value.to_string(), alias.clone())
-            }
-            LogicalExpr::BinaryExpr(expr, alias) => {
-                LogicalExpr::fmt(expr.to_string(), alias.clone())
-            }
+            LogicalExpr::Column(column, alias) => LogicalExpr::fmt(column.name().clone(), alias),
+            LogicalExpr::LiteralText(value, alias) => LogicalExpr::fmt(value.clone(), alias),
+            LogicalExpr::LiteralBoolean(value, alias) => LogicalExpr::fmt(value.to_string(), alias),
+            LogicalExpr::LiteralInteger(value, alias) => LogicalExpr::fmt(value.to_string(), alias),
+            LogicalExpr::LiteralFloat(value, alias) => LogicalExpr::fmt(value.to_string(), alias),
+            LogicalExpr::BinaryExpr(expr, alias) => LogicalExpr::fmt(expr.to_string(), alias),
         }
     }
 
@@ -124,11 +118,10 @@ impl Column {
         input: &LogicalPlan,
         alias: &Option<String>,
     ) -> Result<Field, ZakuError> {
-        Ok(input
-            .schema()
-            .get_field(&self.name)?
-            .set_alias(alias.clone())
-            .clone())
+        let schema = input.schema();
+        let mut f = schema.get_field(&self.name)?.clone();
+        f.set_alias(alias);
+        Ok(f)
     }
 
     fn column_to_physical_expr(&self, input: &LogicalPlan) -> Result<PhysicalExpr, ZakuError> {

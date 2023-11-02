@@ -2,7 +2,7 @@ use crate::{datasources::datasource::Datasource, datatypes::schema::Schema, erro
 
 use super::{
     logical_expr::LogicalExpr,
-    logical_plan::{Filter, LogicalPlan, Projection, Scan},
+    logical_plan::{Filter, LogicalPlan, LogicalPlanTrait, Projection, Scan},
 };
 
 #[derive(Debug, Clone)]

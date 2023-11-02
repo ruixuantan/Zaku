@@ -1,31 +1,28 @@
 use std::vec;
 
-use crate::datatypes::{column_vector::Vector, record_batch::RecordBatch, schema::Schema};
+use crate::datatypes::{
+    column_vector::{Vector, VectorTrait},
+    record_batch::RecordBatch,
+    schema::Schema,
+};
+
+const DIVIDER: &str = "|";
 
 fn compute_cell_space(schema: &Schema, record_batch: &RecordBatch) -> Vec<usize> {
-    let mut size = vec![];
-    schema.fields().iter().for_each(|field| {
-        size.push(field.name().len());
-    });
-    record_batch.iter().enumerate().for_each(|(i, col)| {
-        let mut max = size[i];
-        match col.as_ref() {
-            Vector::ColumnVector(vector) => {
-                vector.iter().for_each(|val| {
-                    if val.to_string().len() > max {
-                        max = val.to_string().len();
-                    }
-                });
-            }
+    let size: Vec<usize> = schema.fields().iter().map(|f| f.alias().len()).collect();
+
+    record_batch
+        .iter()
+        .zip(size)
+        .map(|(col, curr_size)| match col.as_ref() {
+            Vector::ColumnVector(vector) => vector
+                .iter()
+                .fold(curr_size, |acc, e| std::cmp::max(acc, e.to_string().len())),
             Vector::LiteralVector(vector) => {
-                if vector.get_value(&i).to_string().len() > max {
-                    max = vector.get_value(&i).to_string().len();
-                }
+                std::cmp::max(curr_size, vector.value().to_string().len())
             }
-        }
-        size[i] = max;
-    });
-    size
+        })
+        .collect()
 }
 
 fn pad_value(value: String, space: usize) -> String {
@@ -37,15 +34,17 @@ fn pad_value(value: String, space: usize) -> String {
 }
 
 fn get_divider(cell_space: &Vec<usize>) -> String {
-    let mut results = vec![];
-    cell_space.iter().for_each(|space| {
-        let mut divider = String::new();
-        while divider.len() < space + 2 {
-            divider.push('-');
-        }
-        results.push(divider);
-    });
-    results.join("+")
+    cell_space
+        .iter()
+        .map(|space| {
+            let mut divider = String::new();
+            while divider.len() < space + 2 {
+                divider.push('-');
+            }
+            divider
+        })
+        .collect::<Vec<String>>()
+        .join("+")
 }
 
 pub fn prettify(record_batch: &RecordBatch) -> String {
@@ -59,7 +58,7 @@ pub fn prettify(record_batch: &RecordBatch) -> String {
         .enumerate()
         .map(|(i, field)| pad_value(field.alias().clone(), cell_space[i]))
         .collect::<Vec<String>>()
-        .join("|");
+        .join(DIVIDER);
     results.push(header);
 
     let divider = get_divider(&cell_space);
@@ -69,17 +68,17 @@ pub fn prettify(record_batch: &RecordBatch) -> String {
     let col_count = record_batch.column_count();
 
     (0..row_count).for_each(|i| {
-        let mut result = vec![];
-        (0..col_count).for_each(|j| {
-            let value = record_batch
-                .get(&j)
-                .expect("Index of record batch should not exceed size")
-                .get_value(&i)
-                .to_string();
-            let padded_value = pad_value(value, cell_space[j]);
-            result.push(padded_value);
-        });
-        results.push(result.join("|"));
+        let result: Vec<String> = (0..col_count)
+            .map(|j| {
+                let value = record_batch
+                    .get(&j)
+                    .expect("Index of record batch should not exceed size")
+                    .get_value(&i)
+                    .to_string();
+                pad_value(value, cell_space[j])
+            })
+            .collect();
+        results.push(result.join(DIVIDER));
     });
 
     results.push(format!("({} rows)", row_count));

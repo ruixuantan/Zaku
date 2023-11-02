@@ -19,3 +19,21 @@ impl Display for ZakuError {
 }
 
 impl Error for ZakuError {}
+
+impl From<csv::Error> for ZakuError {
+    fn from(e: csv::Error) -> Self {
+        ZakuError::new(e.to_string())
+    }
+}
+
+impl From<std::io::Error> for ZakuError {
+    fn from(e: std::io::Error) -> Self {
+        ZakuError::new(e.to_string())
+    }
+}
+
+impl From<sqlparser::parser::ParserError> for ZakuError {
+    fn from(e: sqlparser::parser::ParserError) -> Self {
+        ZakuError::new(e.to_string())
+    }
+}

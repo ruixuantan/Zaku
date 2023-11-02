@@ -3,14 +3,22 @@ use std::sync::Arc;
 use crate::{
     datasources::datasource::Datasource,
     datatypes::{
-        column_vector::{ColumnVector, Vector},
+        column_vector::{ColumnVector, Vector, VectorTrait},
         record_batch::RecordBatch,
         schema::Schema,
         types::Value,
     },
 };
 
-use super::physical_expr::PhysicalExpr;
+use super::physical_expr::{PhysicalExpr, PhysicalExprTrait};
+
+pub trait PhysicalPlanTrait {
+    fn schema(&self) -> Schema;
+
+    fn execute(&self) -> RecordBatch;
+
+    fn children(&self) -> Vec<PhysicalPlan>;
+}
 
 #[derive(Clone)]
 pub enum PhysicalPlan {
@@ -19,8 +27,8 @@ pub enum PhysicalPlan {
     Filter(FilterExec),
 }
 
-impl PhysicalPlan {
-    pub fn schema(&self) -> Schema {
+impl PhysicalPlanTrait for PhysicalPlan {
+    fn schema(&self) -> Schema {
         match self {
             PhysicalPlan::Scan(scan) => scan.schema(),
             PhysicalPlan::Projection(projection) => projection.schema(),
@@ -28,7 +36,7 @@ impl PhysicalPlan {
         }
     }
 
-    pub fn execute(&self) -> RecordBatch {
+    fn execute(&self) -> RecordBatch {
         match self {
             PhysicalPlan::Scan(scan) => scan.execute(),
             PhysicalPlan::Projection(projection) => projection.execute(),
@@ -36,7 +44,7 @@ impl PhysicalPlan {
         }
     }
 
-    pub fn children(&self) -> Vec<PhysicalPlan> {
+    fn children(&self) -> Vec<PhysicalPlan> {
         match self {
             PhysicalPlan::Scan(scan) => scan.children(),
             PhysicalPlan::Projection(projection) => projection.children(),
@@ -58,7 +66,9 @@ impl ScanExec {
             projection,
         }
     }
+}
 
+impl PhysicalPlanTrait for ScanExec {
     fn schema(&self) -> Schema {
         self.datasource.schema().select(&self.projection)
     }
@@ -91,7 +101,9 @@ impl ProjectionExec {
             expr,
         }
     }
+}
 
+impl PhysicalPlanTrait for ProjectionExec {
     fn schema(&self) -> Schema {
         self.schema.clone()
     }
@@ -126,7 +138,9 @@ impl FilterExec {
             expr,
         }
     }
+}
 
+impl PhysicalPlanTrait for FilterExec {
     fn schema(&self) -> Schema {
         self.schema.clone()
     }

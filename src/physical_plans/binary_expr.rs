@@ -2,42 +2,14 @@ use std::sync::Arc;
 
 use crate::{
     datatypes::{
-        column_vector::{ColumnVector, Vector},
+        column_vector::{ColumnVector, Vector, VectorTrait},
         record_batch::RecordBatch,
         types::{DataType, Value},
     },
-    error::ZakuError,
+    sql::operators::{BooleanOp, MathOp},
 };
 
-use super::physical_expr::PhysicalExpr;
-
-#[derive(Clone)]
-pub enum BooleanOp {
-    And,
-    Or,
-    Eq,
-    Neq,
-    Gt,
-    Gte,
-    Lt,
-    Lte,
-}
-
-impl BooleanOp {
-    pub fn from_str(op: &str) -> Result<BooleanOp, ZakuError> {
-        match op.to_lowercase().as_str() {
-            "and" => Ok(BooleanOp::And),
-            "or" => Ok(BooleanOp::Or),
-            "=" => Ok(BooleanOp::Eq),
-            "<>" => Ok(BooleanOp::Neq),
-            ">" => Ok(BooleanOp::Gt),
-            ">=" => Ok(BooleanOp::Gte),
-            "<" => Ok(BooleanOp::Lt),
-            "<=" => Ok(BooleanOp::Lte),
-            _ => Err(ZakuError::new("Invalid boolean operator".to_string())),
-        }
-    }
-}
+use super::physical_expr::{PhysicalExpr, PhysicalExprTrait};
 
 #[derive(Clone)]
 pub struct BooleanExpr {
@@ -63,8 +35,10 @@ impl BooleanExpr {
             BooleanOp::Lte => l.lte(r),
         }
     }
+}
 
-    pub fn evaluate(&self, record_batch: &RecordBatch) -> Arc<Vector> {
+impl PhysicalExprTrait for BooleanExpr {
+    fn evaluate(&self, record_batch: &RecordBatch) -> Arc<Vector> {
         let row_num = record_batch.row_count();
         let l = self.l.evaluate(record_batch);
         let r = self.r.evaluate(record_batch);
@@ -80,28 +54,6 @@ impl BooleanExpr {
             DataType::Boolean,
             vector,
         )))
-    }
-}
-
-#[derive(Clone)]
-pub enum MathOp {
-    Add,
-    Sub,
-    Mul,
-    Div,
-    Mod,
-}
-
-impl MathOp {
-    pub fn from_str(op: &str) -> Result<MathOp, ZakuError> {
-        match op.to_lowercase().as_str() {
-            "+" => Ok(MathOp::Add),
-            "-" => Ok(MathOp::Sub),
-            "*" => Ok(MathOp::Mul),
-            "/" => Ok(MathOp::Div),
-            "%" => Ok(MathOp::Mod),
-            _ => Err(ZakuError::new("Invalid math operator".to_string())),
-        }
     }
 }
 
@@ -126,8 +78,10 @@ impl MathExpr {
             MathOp::Mod => l.modulo(r),
         }
     }
+}
 
-    pub fn evaluate(&self, record_batch: &RecordBatch) -> Arc<Vector> {
+impl PhysicalExprTrait for MathExpr {
+    fn evaluate(&self, record_batch: &RecordBatch) -> Arc<Vector> {
         let row_num = record_batch.row_count();
         let l = self.l.evaluate(record_batch);
         let r = self.r.evaluate(record_batch);

@@ -1,6 +1,7 @@
 use zaku::{
     datatypes::record_batch::RecordBatch, error::ZakuError, logical_plans::dataframe::Dataframe,
-    sql::parser::parse,
+    logical_plans::logical_plan::LogicalPlanTrait,
+    physical_plans::physical_plan::PhysicalPlanTrait, sql::parser::parse,
 };
 
 fn execute(sql: &str) -> Result<RecordBatch, ZakuError> {
