@@ -25,6 +25,7 @@ pub enum PhysicalPlan {
     Scan(ScanExec),
     Projection(ProjectionExec),
     Filter(FilterExec),
+    Limit(LimitExec),
 }
 
 impl PhysicalPlanTrait for PhysicalPlan {
@@ -33,6 +34,7 @@ impl PhysicalPlanTrait for PhysicalPlan {
             PhysicalPlan::Scan(scan) => scan.schema(),
             PhysicalPlan::Projection(projection) => projection.schema(),
             PhysicalPlan::Filter(filter) => filter.schema(),
+            PhysicalPlan::Limit(limit) => limit.schema(),
         }
     }
 
@@ -41,6 +43,7 @@ impl PhysicalPlanTrait for PhysicalPlan {
             PhysicalPlan::Scan(scan) => scan.execute(),
             PhysicalPlan::Projection(projection) => projection.execute(),
             PhysicalPlan::Filter(filter) => filter.execute(),
+            PhysicalPlan::Limit(limit) => limit.execute(),
         }
     }
 
@@ -49,6 +52,7 @@ impl PhysicalPlanTrait for PhysicalPlan {
             PhysicalPlan::Scan(scan) => scan.children(),
             PhysicalPlan::Projection(projection) => projection.children(),
             PhysicalPlan::Filter(filter) => filter.children(),
+            PhysicalPlan::Limit(limit) => limit.children(),
         }
     }
 }
@@ -159,6 +163,48 @@ impl PhysicalPlanTrait for FilterExec {
                         .filter(|(i, _)| eval_col.get_value(i) == &Value::Boolean(true))
                         .map(|(_, v)| v.clone())
                         .collect(),
+                )))
+            })
+            .collect();
+
+        RecordBatch::new(self.schema.clone(), cols)
+    }
+
+    fn children(&self) -> Vec<PhysicalPlan> {
+        vec![*self.physical_plan.clone()]
+    }
+}
+
+#[derive(Clone)]
+pub struct LimitExec {
+    schema: Schema,
+    physical_plan: Box<PhysicalPlan>,
+    limit: usize,
+}
+
+impl LimitExec {
+    pub fn new(schema: Schema, physical_plan: PhysicalPlan, limit: usize) -> LimitExec {
+        LimitExec {
+            schema,
+            physical_plan: Box::new(physical_plan),
+            limit,
+        }
+    }
+}
+
+impl PhysicalPlanTrait for LimitExec {
+    fn schema(&self) -> Schema {
+        self.schema.clone()
+    }
+
+    fn execute(&self) -> RecordBatch {
+        let record_batch = self.physical_plan.execute();
+        let cols = record_batch
+            .iter()
+            .map(|c| {
+                Arc::new(Vector::ColumnVector(ColumnVector::new(
+                    *c.get_type(),
+                    c.iter().take(self.limit).cloned().collect(),
                 )))
             })
             .collect();

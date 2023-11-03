@@ -2,7 +2,7 @@ use crate::{datasources::datasource::Datasource, datatypes::schema::Schema, erro
 
 use super::{
     logical_expr::LogicalExpr,
-    logical_plan::{Filter, LogicalPlan, LogicalPlanTrait, Projection, Scan},
+    logical_plan::{Filter, Limit, LogicalPlan, LogicalPlanTrait, Projection, Scan},
 };
 
 #[derive(Debug, Clone)]
@@ -43,6 +43,13 @@ impl Dataframe {
         Ok(Dataframe::new(LogicalPlan::Filter(Filter::new(
             self.plan.clone(),
             expr,
+        )?)))
+    }
+
+    pub fn limit(&self, limit: usize) -> Result<Dataframe, ZakuError> {
+        Ok(Dataframe::new(LogicalPlan::Limit(Limit::new(
+            self.plan.clone(),
+            limit,
         )?)))
     }
 }

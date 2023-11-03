@@ -6,7 +6,7 @@ use crate::{
     error::ZakuError,
     physical_plans::{
         physical_expr::PhysicalExpr,
-        physical_plan::{FilterExec, PhysicalPlan, ProjectionExec, ScanExec},
+        physical_plan::{FilterExec, LimitExec, PhysicalPlan, ProjectionExec, ScanExec},
     },
 };
 
@@ -24,17 +24,10 @@ pub enum LogicalPlan {
     Scan(Scan),
     Projection(Projection),
     Filter(Filter),
+    Limit(Limit),
 }
 
 impl LogicalPlan {
-    // fn to_string(&self) -> String {
-    //     match self {
-    //         LogicalPlan::Scan(scan) => scan.to_string(),
-    //         LogicalPlan::Projection(projection) => projection.to_string(),
-    //         LogicalPlan::Filter(filter) => filter.to_string(),
-    //     }
-    // }
-
     fn format(plan: &LogicalPlan, indent: usize) -> String {
         let mut s = String::new();
         (0..indent).for_each(|_| s.push('\t'));
@@ -53,6 +46,7 @@ impl LogicalPlanTrait for LogicalPlan {
             LogicalPlan::Scan(scan) => scan.schema(),
             LogicalPlan::Projection(projection) => projection.schema(),
             LogicalPlan::Filter(filter) => filter.schema(),
+            LogicalPlan::Limit(limit) => limit.schema(),
         }
     }
 
@@ -61,6 +55,7 @@ impl LogicalPlanTrait for LogicalPlan {
             LogicalPlan::Scan(scan) => scan.children(),
             LogicalPlan::Projection(projection) => projection.children(),
             LogicalPlan::Filter(filter) => filter.children(),
+            LogicalPlan::Limit(limit) => limit.children(),
         }
     }
 
@@ -69,6 +64,7 @@ impl LogicalPlanTrait for LogicalPlan {
             LogicalPlan::Scan(scan) => scan.to_string(),
             LogicalPlan::Projection(projection) => projection.to_string(),
             LogicalPlan::Filter(filter) => filter.to_string(),
+            LogicalPlan::Limit(limit) => limit.to_string(),
         }
     }
 
@@ -77,6 +73,7 @@ impl LogicalPlanTrait for LogicalPlan {
             LogicalPlan::Scan(scan) => scan.to_physical_plan(),
             LogicalPlan::Projection(projection) => projection.to_physical_plan(),
             LogicalPlan::Filter(filter) => filter.to_physical_plan(),
+            LogicalPlan::Limit(limit) => limit.to_physical_plan(),
         }
     }
 }
@@ -229,6 +226,44 @@ impl LogicalPlanTrait for Filter {
             self.schema(),
             physical_plan,
             physical_expr,
+        )))
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Limit {
+    logical_plan: Box<LogicalPlan>,
+    limit: usize,
+}
+
+impl Limit {
+    pub fn new(logical_plan: LogicalPlan, limit: usize) -> Result<Limit, ZakuError> {
+        Ok(Limit {
+            logical_plan: Box::new(logical_plan),
+            limit,
+        })
+    }
+}
+
+impl LogicalPlanTrait for Limit {
+    fn schema(&self) -> Schema {
+        self.logical_plan.schema()
+    }
+
+    fn children(&self) -> Vec<LogicalPlan> {
+        vec![*self.logical_plan.clone()]
+    }
+
+    fn to_string(&self) -> String {
+        format!("Limit: {}", self.limit)
+    }
+
+    fn to_physical_plan(&self) -> Result<PhysicalPlan, ZakuError> {
+        let physical_plan = self.logical_plan.to_physical_plan()?;
+        Ok(PhysicalPlan::Limit(LimitExec::new(
+            self.schema(),
+            physical_plan,
+            self.limit,
         )))
     }
 }

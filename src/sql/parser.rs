@@ -9,15 +9,40 @@ use crate::{
     },
 };
 
-fn parse_select(sql: &str) -> Result<Box<Select>, ZakuError> {
-    let dialect = sqlparser::dialect::GenericDialect {};
+struct SqlStmt {
+    body: Box<Select>,
+    limit: Option<usize>,
+}
 
+impl SqlStmt {
+    fn new(body: Box<Select>, limit: Option<usize>) -> Self {
+        Self { body, limit }
+    }
+}
+
+fn parse_select(sql: &str) -> Result<SqlStmt, ZakuError> {
+    let dialect = sqlparser::dialect::GenericDialect {};
     let ast = sqlparser::parser::Parser::parse_sql(&dialect, sql)?;
     match &ast[0] {
-        Statement::Query(query) => match &*query.body {
-            sqlparser::ast::SetExpr::Select(s) => Ok(s.clone()),
-            _ => Err(ZakuError::new("Not a select query".to_string())),
-        },
+        Statement::Query(query) => {
+            let limit = match &query.limit {
+                Some(sqlparser::ast::Expr::Value(sqlparser::ast::Value::Number(num, _))) => {
+                    Ok(Some(
+                        num.parse::<usize>()
+                            .unwrap_or_else(|_| panic!("{num} should be a number")),
+                    ))
+                }
+                Some(_) => Err(ZakuError::new("Limit should be a number".to_string())),
+                _ => Ok(None),
+            };
+
+            let body = match &*query.body {
+                sqlparser::ast::SetExpr::Select(s) => Ok(s.clone()),
+                _ => Err(ZakuError::new("Not a select query".to_string())),
+            };
+
+            Ok(SqlStmt::new(body?, limit?))
+        }
         _ => Err(ZakuError::new("Not a query".to_string())),
     }
 }
@@ -67,16 +92,20 @@ fn parse_expr(expr: &Expr) -> Result<LogicalExpr, ZakuError> {
     }
 }
 
-fn create_df(select: &Select, dataframe: Dataframe) -> Result<Dataframe, ZakuError> {
+fn create_df(select: &SqlStmt, dataframe: Dataframe) -> Result<Dataframe, ZakuError> {
     let mut df = dataframe;
-    let selection = select.selection.as_ref().map(parse_expr);
+    let selection = select.body.selection.as_ref().map(parse_expr);
     if let Some(selection) = selection {
         df = df.filter(selection?)?;
     }
 
-    let projections = parse_projection(select)?;
+    let projections = parse_projection(&select.body)?;
     if !projections.is_empty() {
         df = df.projection(projections)?;
+    }
+
+    if let Some(limit) = select.limit {
+        df = df.limit(limit)?;
     }
 
     Ok(df)
