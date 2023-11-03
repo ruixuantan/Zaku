@@ -2,24 +2,24 @@ use std::sync::Arc;
 
 use crate::{
     datatypes::{
-        column_vector::{ColumnVector, Vector, VectorTrait},
+        column_vector::{ColumnVector, Vector, Vectors},
         record_batch::RecordBatch,
         types::{DataType, Value},
     },
     sql::operators::{BooleanOp, MathOp},
 };
 
-use super::physical_expr::{PhysicalExpr, PhysicalExprTrait};
+use super::physical_expr::{PhysicalExpr, PhysicalExprs};
 
 #[derive(Clone)]
 pub struct BooleanExpr {
-    l: Box<PhysicalExpr>,
+    l: Box<PhysicalExprs>,
     op: BooleanOp,
-    r: Box<PhysicalExpr>,
+    r: Box<PhysicalExprs>,
 }
 
 impl BooleanExpr {
-    pub fn new(l: Box<PhysicalExpr>, op: BooleanOp, r: Box<PhysicalExpr>) -> Self {
+    pub fn new(l: Box<PhysicalExprs>, op: BooleanOp, r: Box<PhysicalExprs>) -> Self {
         Self { l, op, r }
     }
 
@@ -37,8 +37,8 @@ impl BooleanExpr {
     }
 }
 
-impl PhysicalExprTrait for BooleanExpr {
-    fn evaluate(&self, record_batch: &RecordBatch) -> Arc<Vector> {
+impl PhysicalExpr for BooleanExpr {
+    fn evaluate(&self, record_batch: &RecordBatch) -> Arc<Vectors> {
         let row_num = record_batch.row_count();
         let l = self.l.evaluate(record_batch);
         let r = self.r.evaluate(record_batch);
@@ -50,7 +50,7 @@ impl PhysicalExprTrait for BooleanExpr {
                 self.evaluate_row(l_val, r_val)
             })
             .collect();
-        Arc::new(Vector::ColumnVector(ColumnVector::new(
+        Arc::new(Vectors::ColumnVector(ColumnVector::new(
             DataType::Boolean,
             vector,
         )))
@@ -59,13 +59,13 @@ impl PhysicalExprTrait for BooleanExpr {
 
 #[derive(Clone)]
 pub struct MathExpr {
-    l: Box<PhysicalExpr>,
+    l: Box<PhysicalExprs>,
     op: MathOp,
-    r: Box<PhysicalExpr>,
+    r: Box<PhysicalExprs>,
 }
 
 impl MathExpr {
-    pub fn new(l: Box<PhysicalExpr>, op: MathOp, r: Box<PhysicalExpr>) -> Self {
+    pub fn new(l: Box<PhysicalExprs>, op: MathOp, r: Box<PhysicalExprs>) -> Self {
         Self { l, op, r }
     }
 
@@ -80,8 +80,8 @@ impl MathExpr {
     }
 }
 
-impl PhysicalExprTrait for MathExpr {
-    fn evaluate(&self, record_batch: &RecordBatch) -> Arc<Vector> {
+impl PhysicalExpr for MathExpr {
+    fn evaluate(&self, record_batch: &RecordBatch) -> Arc<Vectors> {
         let row_num = record_batch.row_count();
         let l = self.l.evaluate(record_batch);
         let r = self.r.evaluate(record_batch);
@@ -94,6 +94,6 @@ impl PhysicalExprTrait for MathExpr {
                 self.evaluate_row(l_val, r_val)
             })
             .collect();
-        Arc::new(Vector::ColumnVector(ColumnVector::new(*datatype, vector)))
+        Arc::new(Vectors::ColumnVector(ColumnVector::new(*datatype, vector)))
     }
 }

@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::{
     datatypes::{
-        column_vector::{ColumnVector, Vector},
+        column_vector::{ColumnVector, Vectors},
         record_batch::RecordBatch,
         schema::{Field, Schema},
         types::{DataType, Value},
@@ -81,7 +81,7 @@ impl Datasource {
             .into_iter()
             .enumerate()
             .map(|(i, c)| {
-                Arc::new(Vector::ColumnVector(ColumnVector::new(
+                Arc::new(Vectors::ColumnVector(ColumnVector::new(
                     *schema
                         .get_datatype_from_index(&i)
                         .expect("Index out of bounds"),
@@ -98,7 +98,7 @@ mod test {
     use std::{sync::Arc, vec};
 
     use crate::datatypes::{
-        column_vector::{ColumnVector, Vector},
+        column_vector::{ColumnVector, Vectors},
         schema::Field,
         types::{DataType, Value},
     };
@@ -136,11 +136,11 @@ mod test {
 
         let cols = record_batch.columns();
         let ex_cols = vec![
-            Arc::new(Vector::ColumnVector(ColumnVector::new(
+            Arc::new(Vectors::ColumnVector(ColumnVector::new(
                 DataType::Integer,
                 [1, 2, 3, 4, 5].iter().map(|i| Value::Integer(*i)).collect(),
             ))),
-            Arc::new(Vector::ColumnVector(ColumnVector::new(
+            Arc::new(Vectors::ColumnVector(ColumnVector::new(
                 DataType::Text,
                 [
                     "toothbrush",
@@ -153,21 +153,21 @@ mod test {
                 .map(|s| Value::Text(s.to_string()))
                 .collect(),
             ))),
-            Arc::new(Vector::ColumnVector(ColumnVector::new(
+            Arc::new(Vectors::ColumnVector(ColumnVector::new(
                 DataType::Boolean,
                 [true, true, true, false, true]
                     .iter()
                     .map(|b| Value::Boolean(*b))
                     .collect(),
             ))),
-            Arc::new(Vector::ColumnVector(ColumnVector::new(
+            Arc::new(Vectors::ColumnVector(ColumnVector::new(
                 DataType::Float,
                 [5.00, 10.00, 15.50, 2.00, 20.00]
                     .iter()
                     .map(|f| Value::Float(*f))
                     .collect(),
             ))),
-            Arc::new(Vector::ColumnVector(ColumnVector::new(
+            Arc::new(Vectors::ColumnVector(ColumnVector::new(
                 DataType::Integer,
                 [100, 50, 25, 0, 10]
                     .iter()

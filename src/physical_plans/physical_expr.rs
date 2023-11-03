@@ -1,19 +1,19 @@
 use std::sync::Arc;
 
 use crate::datatypes::{
-    column_vector::{LiteralVector, Vector},
+    column_vector::{LiteralVector, Vectors},
     record_batch::RecordBatch,
     types::{DataType, Value},
 };
 
 use super::binary_expr::{BooleanExpr, MathExpr};
 
-pub trait PhysicalExprTrait {
-    fn evaluate(&self, batch: &RecordBatch) -> Arc<Vector>;
+pub trait PhysicalExpr {
+    fn evaluate(&self, batch: &RecordBatch) -> Arc<Vectors>;
 }
 
 #[derive(Clone)]
-pub enum PhysicalExpr {
+pub enum PhysicalExprs {
     ColumnExpr(usize),
     LiteralTextExpr(String),
     LiteralBooleanExpr(bool),
@@ -23,43 +23,47 @@ pub enum PhysicalExpr {
     MathExpr(MathExpr),
 }
 
-impl PhysicalExprTrait for PhysicalExpr {
-    fn evaluate(&self, batch: &RecordBatch) -> Arc<Vector> {
+impl PhysicalExpr for PhysicalExprs {
+    fn evaluate(&self, batch: &RecordBatch) -> Arc<Vectors> {
         let size = batch.row_count();
         match self {
-            PhysicalExpr::ColumnExpr(index) => batch
+            PhysicalExprs::ColumnExpr(index) => batch
                 .get(index)
                 .expect("Expected column to be in record batch"),
-            PhysicalExpr::LiteralTextExpr(value) => {
+            PhysicalExprs::LiteralTextExpr(value) => {
                 create_literal(Value::Text(value.to_string()), size)
             }
-            PhysicalExpr::LiteralBooleanExpr(value) => create_literal(Value::Boolean(*value), size),
-            PhysicalExpr::LiteralIntegerExpr(value) => create_literal(Value::Integer(*value), size),
-            PhysicalExpr::LiteralFloatExpr(value) => create_literal(Value::Float(*value), size),
-            PhysicalExpr::BooleanExpr(expr) => expr.evaluate(batch),
-            PhysicalExpr::MathExpr(expr) => expr.evaluate(batch),
+            PhysicalExprs::LiteralBooleanExpr(value) => {
+                create_literal(Value::Boolean(*value), size)
+            }
+            PhysicalExprs::LiteralIntegerExpr(value) => {
+                create_literal(Value::Integer(*value), size)
+            }
+            PhysicalExprs::LiteralFloatExpr(value) => create_literal(Value::Float(*value), size),
+            PhysicalExprs::BooleanExpr(expr) => expr.evaluate(batch),
+            PhysicalExprs::MathExpr(expr) => expr.evaluate(batch),
         }
     }
 }
 
-fn create_literal(val: Value, size: usize) -> Arc<Vector> {
+fn create_literal(val: Value, size: usize) -> Arc<Vectors> {
     match val {
-        Value::Text(_) => Arc::new(Vector::LiteralVector(LiteralVector::new(
+        Value::Text(_) => Arc::new(Vectors::LiteralVector(LiteralVector::new(
             DataType::Text,
             val,
             size,
         ))),
-        Value::Boolean(_) => Arc::new(Vector::LiteralVector(LiteralVector::new(
+        Value::Boolean(_) => Arc::new(Vectors::LiteralVector(LiteralVector::new(
             DataType::Boolean,
             val,
             size,
         ))),
-        Value::Integer(_) => Arc::new(Vector::LiteralVector(LiteralVector::new(
+        Value::Integer(_) => Arc::new(Vectors::LiteralVector(LiteralVector::new(
             DataType::Integer,
             val,
             size,
         ))),
-        Value::Float(_) => Arc::new(Vector::LiteralVector(LiteralVector::new(
+        Value::Float(_) => Arc::new(Vectors::LiteralVector(LiteralVector::new(
             DataType::Float,
             val,
             size,

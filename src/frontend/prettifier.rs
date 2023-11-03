@@ -1,7 +1,7 @@
 use std::vec;
 
 use crate::datatypes::{
-    column_vector::{Vector, VectorTrait},
+    column_vector::{Vector, Vectors},
     record_batch::RecordBatch,
     schema::Schema,
 };
@@ -15,10 +15,10 @@ fn compute_cell_space(schema: &Schema, record_batch: &RecordBatch) -> Vec<usize>
         .iter()
         .zip(size)
         .map(|(col, curr_size)| match col.as_ref() {
-            Vector::ColumnVector(vector) => vector
+            Vectors::ColumnVector(vector) => vector
                 .iter()
                 .fold(curr_size, |acc, e| std::cmp::max(acc, e.to_string().len())),
-            Vector::LiteralVector(vector) => {
+            Vectors::LiteralVector(vector) => {
                 std::cmp::max(curr_size, vector.value().to_string().len())
             }
         })
@@ -92,7 +92,7 @@ mod test {
 
     use super::{compute_cell_space, get_divider, pad_value};
     use crate::datatypes::{
-        column_vector::{ColumnVector, Vector},
+        column_vector::{ColumnVector, Vectors},
         record_batch::RecordBatch,
         schema::{Field, Schema},
         types::{DataType, Value},
@@ -108,11 +108,11 @@ mod test {
         let record_batch = RecordBatch::new(
             schema.clone(),
             vec![
-                Arc::new(Vector::ColumnVector(ColumnVector::new(
+                Arc::new(Vectors::ColumnVector(ColumnVector::new(
                     DataType::Integer,
                     vec![Value::Integer(1), Value::Integer(2), Value::Integer(3)],
                 ))),
-                Arc::new(Vector::ColumnVector(ColumnVector::new(
+                Arc::new(Vectors::ColumnVector(ColumnVector::new(
                     DataType::Text,
                     vec![
                         Value::Text("Alice".to_string()),
@@ -120,7 +120,7 @@ mod test {
                         Value::Text("Charlie".to_string()),
                     ],
                 ))),
-                Arc::new(Vector::ColumnVector(ColumnVector::new(
+                Arc::new(Vectors::ColumnVector(ColumnVector::new(
                     DataType::Integer,
                     vec![Value::Integer(20), Value::Integer(21), Value::Integer(22)],
                 ))),

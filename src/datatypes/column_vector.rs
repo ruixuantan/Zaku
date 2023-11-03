@@ -1,6 +1,9 @@
+use enum_dispatch::enum_dispatch;
+
 use super::types::{DataType, Value};
 
-pub trait VectorTrait {
+#[enum_dispatch]
+pub trait Vector {
     fn get_type(&self) -> &DataType;
 
     fn get_value(&self, index: &usize) -> &Value;
@@ -11,39 +14,10 @@ pub trait VectorTrait {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum Vector {
+#[enum_dispatch(Vector)]
+pub enum Vectors {
     ColumnVector(ColumnVector),
     LiteralVector(LiteralVector),
-}
-
-impl VectorTrait for Vector {
-    fn get_type(&self) -> &DataType {
-        match self {
-            Vector::ColumnVector(vector) => vector.get_type(),
-            Vector::LiteralVector(vector) => vector.get_type(),
-        }
-    }
-
-    fn get_value(&self, index: &usize) -> &Value {
-        match self {
-            Vector::ColumnVector(vector) => vector.get_value(index),
-            Vector::LiteralVector(vector) => vector.get_value(index),
-        }
-    }
-
-    fn iter(&self) -> Box<dyn Iterator<Item = &Value> + '_> {
-        match self {
-            Vector::ColumnVector(vector) => Box::new(vector.iter()),
-            Vector::LiteralVector(vector) => Box::new(vector.iter()),
-        }
-    }
-
-    fn size(&self) -> usize {
-        match self {
-            Vector::ColumnVector(vector) => vector.size(),
-            Vector::LiteralVector(vector) => vector.size(),
-        }
-    }
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -58,7 +32,7 @@ impl ColumnVector {
     }
 }
 
-impl VectorTrait for ColumnVector {
+impl Vector for ColumnVector {
     fn get_type(&self) -> &DataType {
         &self.datatype
     }
@@ -122,7 +96,7 @@ impl LiteralVector {
     }
 }
 
-impl VectorTrait for LiteralVector {
+impl Vector for LiteralVector {
     fn get_value(&self, index: &usize) -> &Value {
         if *index >= self.size {
             panic!("Index out of bounds");
@@ -171,7 +145,7 @@ mod test {
         types::{DataType, Value},
     };
 
-    use super::{LiteralVector, VectorTrait};
+    use super::{LiteralVector, Vector};
 
     #[test]
     fn test_column_vector_iterator() {

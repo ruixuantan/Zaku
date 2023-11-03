@@ -1,60 +1,35 @@
 use std::sync::Arc;
 
+use enum_dispatch::enum_dispatch;
+
 use crate::{
     datasources::datasource::Datasource,
     datatypes::{
-        column_vector::{ColumnVector, Vector, VectorTrait},
+        column_vector::{ColumnVector, Vector, Vectors},
         record_batch::RecordBatch,
         schema::Schema,
         types::Value,
     },
 };
 
-use super::physical_expr::{PhysicalExpr, PhysicalExprTrait};
+use super::physical_expr::{PhysicalExpr, PhysicalExprs};
 
-pub trait PhysicalPlanTrait {
+#[enum_dispatch]
+pub trait PhysicalPlan {
     fn schema(&self) -> Schema;
 
     fn execute(&self) -> RecordBatch;
 
-    fn children(&self) -> Vec<PhysicalPlan>;
+    fn children(&self) -> Vec<PhysicalPlans>;
 }
 
 #[derive(Clone)]
-pub enum PhysicalPlan {
+#[enum_dispatch(PhysicalPlan)]
+pub enum PhysicalPlans {
     Scan(ScanExec),
     Projection(ProjectionExec),
     Filter(FilterExec),
     Limit(LimitExec),
-}
-
-impl PhysicalPlanTrait for PhysicalPlan {
-    fn schema(&self) -> Schema {
-        match self {
-            PhysicalPlan::Scan(scan) => scan.schema(),
-            PhysicalPlan::Projection(projection) => projection.schema(),
-            PhysicalPlan::Filter(filter) => filter.schema(),
-            PhysicalPlan::Limit(limit) => limit.schema(),
-        }
-    }
-
-    fn execute(&self) -> RecordBatch {
-        match self {
-            PhysicalPlan::Scan(scan) => scan.execute(),
-            PhysicalPlan::Projection(projection) => projection.execute(),
-            PhysicalPlan::Filter(filter) => filter.execute(),
-            PhysicalPlan::Limit(limit) => limit.execute(),
-        }
-    }
-
-    fn children(&self) -> Vec<PhysicalPlan> {
-        match self {
-            PhysicalPlan::Scan(scan) => scan.children(),
-            PhysicalPlan::Projection(projection) => projection.children(),
-            PhysicalPlan::Filter(filter) => filter.children(),
-            PhysicalPlan::Limit(limit) => limit.children(),
-        }
-    }
 }
 
 #[derive(Clone)]
@@ -72,7 +47,7 @@ impl ScanExec {
     }
 }
 
-impl PhysicalPlanTrait for ScanExec {
+impl PhysicalPlan for ScanExec {
     fn schema(&self) -> Schema {
         self.datasource.schema().select(&self.projection)
     }
@@ -81,7 +56,7 @@ impl PhysicalPlanTrait for ScanExec {
         self.datasource.record_batch().clone()
     }
 
-    fn children(&self) -> Vec<PhysicalPlan> {
+    fn children(&self) -> Vec<PhysicalPlans> {
         Vec::new()
     }
 }
@@ -89,15 +64,15 @@ impl PhysicalPlanTrait for ScanExec {
 #[derive(Clone)]
 pub struct ProjectionExec {
     schema: Schema,
-    physical_plan: Box<PhysicalPlan>,
-    expr: Vec<PhysicalExpr>,
+    physical_plan: Box<PhysicalPlans>,
+    expr: Vec<PhysicalExprs>,
 }
 
 impl ProjectionExec {
     pub fn new(
         schema: Schema,
-        physical_plan: PhysicalPlan,
-        expr: Vec<PhysicalExpr>,
+        physical_plan: PhysicalPlans,
+        expr: Vec<PhysicalExprs>,
     ) -> ProjectionExec {
         ProjectionExec {
             schema,
@@ -107,7 +82,7 @@ impl ProjectionExec {
     }
 }
 
-impl PhysicalPlanTrait for ProjectionExec {
+impl PhysicalPlan for ProjectionExec {
     fn schema(&self) -> Schema {
         self.schema.clone()
     }
@@ -122,7 +97,7 @@ impl PhysicalPlanTrait for ProjectionExec {
         RecordBatch::new(self.schema.clone(), columns)
     }
 
-    fn children(&self) -> Vec<PhysicalPlan> {
+    fn children(&self) -> Vec<PhysicalPlans> {
         vec![*self.physical_plan.clone()]
     }
 }
@@ -130,12 +105,12 @@ impl PhysicalPlanTrait for ProjectionExec {
 #[derive(Clone)]
 pub struct FilterExec {
     schema: Schema,
-    physical_plan: Box<PhysicalPlan>,
-    expr: PhysicalExpr,
+    physical_plan: Box<PhysicalPlans>,
+    expr: PhysicalExprs,
 }
 
 impl FilterExec {
-    pub fn new(schema: Schema, physical_plan: PhysicalPlan, expr: PhysicalExpr) -> FilterExec {
+    pub fn new(schema: Schema, physical_plan: PhysicalPlans, expr: PhysicalExprs) -> FilterExec {
         FilterExec {
             schema,
             physical_plan: Box::new(physical_plan),
@@ -144,7 +119,7 @@ impl FilterExec {
     }
 }
 
-impl PhysicalPlanTrait for FilterExec {
+impl PhysicalPlan for FilterExec {
     fn schema(&self) -> Schema {
         self.schema.clone()
     }
@@ -156,7 +131,7 @@ impl PhysicalPlanTrait for FilterExec {
         let cols = record_batch
             .iter()
             .map(|c| {
-                Arc::new(Vector::ColumnVector(ColumnVector::new(
+                Arc::new(Vectors::ColumnVector(ColumnVector::new(
                     *c.get_type(),
                     c.iter()
                         .enumerate()
@@ -170,7 +145,7 @@ impl PhysicalPlanTrait for FilterExec {
         RecordBatch::new(self.schema.clone(), cols)
     }
 
-    fn children(&self) -> Vec<PhysicalPlan> {
+    fn children(&self) -> Vec<PhysicalPlans> {
         vec![*self.physical_plan.clone()]
     }
 }
@@ -178,12 +153,12 @@ impl PhysicalPlanTrait for FilterExec {
 #[derive(Clone)]
 pub struct LimitExec {
     schema: Schema,
-    physical_plan: Box<PhysicalPlan>,
+    physical_plan: Box<PhysicalPlans>,
     limit: usize,
 }
 
 impl LimitExec {
-    pub fn new(schema: Schema, physical_plan: PhysicalPlan, limit: usize) -> LimitExec {
+    pub fn new(schema: Schema, physical_plan: PhysicalPlans, limit: usize) -> LimitExec {
         LimitExec {
             schema,
             physical_plan: Box::new(physical_plan),
@@ -192,7 +167,7 @@ impl LimitExec {
     }
 }
 
-impl PhysicalPlanTrait for LimitExec {
+impl PhysicalPlan for LimitExec {
     fn schema(&self) -> Schema {
         self.schema.clone()
     }
@@ -202,7 +177,7 @@ impl PhysicalPlanTrait for LimitExec {
         let cols = record_batch
             .iter()
             .map(|c| {
-                Arc::new(Vector::ColumnVector(ColumnVector::new(
+                Arc::new(Vectors::ColumnVector(ColumnVector::new(
                     *c.get_type(),
                     c.iter().take(self.limit).cloned().collect(),
                 )))
@@ -212,7 +187,7 @@ impl PhysicalPlanTrait for LimitExec {
         RecordBatch::new(self.schema.clone(), cols)
     }
 
-    fn children(&self) -> Vec<PhysicalPlan> {
+    fn children(&self) -> Vec<PhysicalPlans> {
         vec![*self.physical_plan.clone()]
     }
 }

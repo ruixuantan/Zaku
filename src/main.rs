@@ -6,8 +6,8 @@ use zaku::{
         ui::{get_input, Command},
     },
     logical_plans::dataframe::Dataframe,
-    logical_plans::logical_plan::LogicalPlanTrait,
-    physical_plans::physical_plan::PhysicalPlanTrait,
+    logical_plans::logical_plan::LogicalPlan,
+    physical_plans::physical_plan::PhysicalPlan,
     sql::parser::parse,
 };
 

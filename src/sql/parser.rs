@@ -3,9 +3,9 @@ use sqlparser::{ast::Expr, ast::Select, ast::SelectItem, ast::Statement};
 use crate::{
     error::ZakuError,
     logical_plans::{
-        binary_expr::BinaryExpr,
+        binary_expr::BinaryExprs,
         dataframe::Dataframe,
-        logical_expr::{Column, LogicalExpr},
+        logical_expr::{Column, LogicalExprs},
     },
 };
 
@@ -47,7 +47,7 @@ fn parse_select(sql: &str) -> Result<SqlStmt, ZakuError> {
     }
 }
 
-fn parse_projection(select: &Select) -> Result<Vec<LogicalExpr>, ZakuError> {
+fn parse_projection(select: &Select) -> Result<Vec<LogicalExprs>, ZakuError> {
     let logical_expr = select
         .projection
         .iter()
@@ -64,26 +64,26 @@ fn parse_projection(select: &Select) -> Result<Vec<LogicalExpr>, ZakuError> {
             }
             _ => panic!("Non unnamed expressions should have been filtered"),
         })
-        .collect::<Result<Vec<LogicalExpr>, ZakuError>>()?;
+        .collect::<Result<Vec<LogicalExprs>, ZakuError>>()?;
     Ok(logical_expr)
 }
 
-fn parse_expr(expr: &Expr) -> Result<LogicalExpr, ZakuError> {
+fn parse_expr(expr: &Expr) -> Result<LogicalExprs, ZakuError> {
     match expr {
         Expr::BinaryOp { left, op, right } => {
             let l = parse_expr(left)?;
             let r = parse_expr(right)?;
-            Ok(LogicalExpr::BinaryExpr(BinaryExpr::new(l, op, r)?, None))
+            Ok(LogicalExprs::BinaryExpr(BinaryExprs::new(l, op, r)?, None))
         }
-        Expr::Identifier(ident) => Ok(LogicalExpr::Column(Column::new(ident.value.clone()), None)),
+        Expr::Identifier(ident) => Ok(LogicalExprs::Column(Column::new(ident.value.clone()), None)),
         Expr::Value(value) => match value {
-            sqlparser::ast::Value::Boolean(b) => Ok(LogicalExpr::LiteralBoolean(*b, None)),
-            sqlparser::ast::Value::Number(n, _) => Ok(LogicalExpr::LiteralFloat(
+            sqlparser::ast::Value::Boolean(b) => Ok(LogicalExprs::LiteralBoolean(*b, None)),
+            sqlparser::ast::Value::Number(n, _) => Ok(LogicalExprs::LiteralFloat(
                 n.parse::<f32>().expect("Value should be a float"),
                 None,
             )),
             sqlparser::ast::Value::SingleQuotedString(s) => {
-                Ok(LogicalExpr::LiteralText(s.clone(), None))
+                Ok(LogicalExprs::LiteralText(s.clone(), None))
             }
             _ => Err(ZakuError::new("Unsupported value")),
         },

@@ -3,18 +3,18 @@ use std::sync::Arc;
 use crate::error::ZakuError;
 
 use super::{
-    column_vector::{Vector, VectorTrait},
+    column_vector::{Vector, Vectors},
     schema::Schema,
 };
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct RecordBatch {
     schema: Schema,
-    columns: Vec<Arc<Vector>>,
+    columns: Vec<Arc<Vectors>>,
 }
 
 impl RecordBatch {
-    pub fn new(schema: Schema, columns: Vec<Arc<Vector>>) -> RecordBatch {
+    pub fn new(schema: Schema, columns: Vec<Arc<Vectors>>) -> RecordBatch {
         RecordBatch { schema, columns }
     }
 
@@ -29,7 +29,7 @@ impl RecordBatch {
         }
     }
 
-    pub fn columns(&self) -> &Vec<Arc<Vector>> {
+    pub fn columns(&self) -> &Vec<Arc<Vectors>> {
         &self.columns
     }
 
@@ -41,7 +41,7 @@ impl RecordBatch {
         self.columns.len()
     }
 
-    pub fn get(&self, index: &usize) -> Result<Arc<Vector>, ZakuError> {
+    pub fn get(&self, index: &usize) -> Result<Arc<Vectors>, ZakuError> {
         if index >= &self.column_count() {
             return Err(ZakuError::new("Index out of bounds"));
         }
@@ -55,7 +55,7 @@ pub struct RecordBatchIterator<'a> {
 }
 
 impl<'a> Iterator for RecordBatchIterator<'a> {
-    type Item = &'a Arc<Vector>;
+    type Item = &'a Arc<Vectors>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.index >= self.record_batch.column_count() {
@@ -74,7 +74,7 @@ mod test {
     use std::sync::Arc;
 
     use super::RecordBatch;
-    use crate::datatypes::column_vector::{LiteralVector, Vector, VectorTrait};
+    use crate::datatypes::column_vector::{LiteralVector, Vector, Vectors};
     use crate::datatypes::schema::{Field, Schema};
     use crate::datatypes::types::{DataType, Value};
 
@@ -85,12 +85,12 @@ mod test {
             Field::new("name".to_string(), DataType::Text),
         ]);
         let columns = vec![
-            Arc::new(Vector::LiteralVector(LiteralVector::new(
+            Arc::new(Vectors::LiteralVector(LiteralVector::new(
                 DataType::Integer,
                 Value::Integer(0),
                 10,
             ))),
-            Arc::new(Vector::LiteralVector(LiteralVector::new(
+            Arc::new(Vectors::LiteralVector(LiteralVector::new(
                 DataType::Text,
                 Value::Text("dummy".to_string()),
                 10,
