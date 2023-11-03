@@ -43,7 +43,7 @@ impl RecordBatch {
 
     pub fn get(&self, index: &usize) -> Result<Arc<Vector>, ZakuError> {
         if index >= &self.column_count() {
-            return Err(ZakuError::new("Index out of bounds".to_string()));
+            return Err(ZakuError::new("Index out of bounds"));
         }
         Ok(self.columns[*index].clone())
     }

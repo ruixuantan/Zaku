@@ -15,7 +15,7 @@ pub enum ZakuError {
 }
 
 impl ZakuError {
-    pub fn new(msg: String) -> ZakuError {
-        ZakuError::InternalError(msg)
+    pub fn new(msg: &str) -> ZakuError {
+        ZakuError::InternalError(msg.to_string())
     }
 }

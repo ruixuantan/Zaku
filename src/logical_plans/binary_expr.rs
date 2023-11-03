@@ -50,7 +50,7 @@ impl BinaryExpr {
             BinaryOperator::Multiply => Ok(BinaryExpr::Mul(MathExpr::new(l, MathOp::Mul, r))),
             BinaryOperator::Divide => Ok(BinaryExpr::Div(MathExpr::new(l, MathOp::Div, r))),
             BinaryOperator::Modulo => Ok(BinaryExpr::Mod(MathExpr::new(l, MathOp::Mod, r))),
-            _ => Err(ZakuError::new("Invalid operator".to_string())),
+            _ => Err(ZakuError::new("Invalid operator")),
         }
     }
 }
@@ -193,7 +193,7 @@ fn get_datatype(
     let r_field = r.to_field(input)?;
     let l_datatype = l_field.datatype();
     let r_datatype = r_field.datatype();
-    let err = Err(ZakuError::new("Datatypes do not match".to_string()));
+    let err = Err(ZakuError::new("Datatypes do not match"));
 
     match l_datatype {
         DataType::Integer => match r_datatype {

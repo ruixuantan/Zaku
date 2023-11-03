@@ -32,18 +32,18 @@ fn parse_select(sql: &str) -> Result<SqlStmt, ZakuError> {
                             .unwrap_or_else(|_| panic!("{num} should be a number")),
                     ))
                 }
-                Some(_) => Err(ZakuError::new("Limit should be a number".to_string())),
+                Some(_) => Err(ZakuError::new("Limit should be a number")),
                 _ => Ok(None),
             };
 
             let body = match &*query.body {
                 sqlparser::ast::SetExpr::Select(s) => Ok(s.clone()),
-                _ => Err(ZakuError::new("Not a select query".to_string())),
+                _ => Err(ZakuError::new("Not a select query")),
             };
 
             Ok(SqlStmt::new(body?, limit?))
         }
-        _ => Err(ZakuError::new("Not a query".to_string())),
+        _ => Err(ZakuError::new("Not a query")),
     }
 }
 
@@ -85,10 +85,10 @@ fn parse_expr(expr: &Expr) -> Result<LogicalExpr, ZakuError> {
             sqlparser::ast::Value::SingleQuotedString(s) => {
                 Ok(LogicalExpr::LiteralText(s.clone(), None))
             }
-            _ => Err(ZakuError::new("Unsupported value".to_string())),
+            _ => Err(ZakuError::new("Unsupported value")),
         },
         Expr::Nested(expr) => parse_expr(expr),
-        _ => Err(ZakuError::new("Unsupported expression".to_string())),
+        _ => Err(ZakuError::new("Unsupported expression")),
     }
 }
 

@@ -35,7 +35,7 @@ impl BinaryOp for BooleanOp {
             BinaryOperator::GtEq => Ok(BooleanOp::Gte),
             BinaryOperator::Lt => Ok(BooleanOp::Lt),
             BinaryOperator::LtEq => Ok(BooleanOp::Lte),
-            _ => Err(ZakuError::new("Invalid boolean operator".to_string())),
+            _ => Err(ZakuError::new("Invalid boolean operator")),
         }
     }
 
@@ -83,7 +83,7 @@ impl BinaryOp for MathOp {
             BinaryOperator::Multiply => Ok(MathOp::Mul),
             BinaryOperator::Divide => Ok(MathOp::Div),
             BinaryOperator::Modulo => Ok(MathOp::Mod),
-            _ => Err(ZakuError::new("Invalid math operator".to_string())),
+            _ => Err(ZakuError::new("Invalid math operator")),
         }
     }
 
