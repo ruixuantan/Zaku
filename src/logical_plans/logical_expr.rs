@@ -91,12 +91,10 @@ impl LogicalExpr for LogicalExprs {
     fn to_physical_expr(&self, input: &LogicalPlans) -> Result<PhysicalExprs, ZakuError> {
         match self {
             LogicalExprs::Column(column, _) => column.column_to_physical_expr(input),
-            LogicalExprs::LiteralText(value, _) => {
-                Ok(PhysicalExprs::LiteralTextExpr(value.clone()))
-            }
-            LogicalExprs::LiteralBoolean(value, _) => Ok(PhysicalExprs::LiteralBooleanExpr(*value)),
-            LogicalExprs::LiteralInteger(value, _) => Ok(PhysicalExprs::LiteralIntegerExpr(*value)),
-            LogicalExprs::LiteralFloat(value, _) => Ok(PhysicalExprs::LiteralFloatExpr(*value)),
+            LogicalExprs::LiteralText(value, _) => Ok(PhysicalExprs::LiteralText(value.clone())),
+            LogicalExprs::LiteralBoolean(value, _) => Ok(PhysicalExprs::LiteralBoolean(*value)),
+            LogicalExprs::LiteralInteger(value, _) => Ok(PhysicalExprs::LiteralInteger(*value)),
+            LogicalExprs::LiteralFloat(value, _) => Ok(PhysicalExprs::LiteralFloat(*value)),
             LogicalExprs::BinaryExpr(expr, _) => expr.to_physical_expr(input),
         }
     }
@@ -148,6 +146,6 @@ impl Column {
 
     fn column_to_physical_expr(&self, input: &LogicalPlans) -> Result<PhysicalExprs, ZakuError> {
         let index = input.schema().get_index(&self.name)?;
-        Ok(PhysicalExprs::ColumnExpr(index))
+        Ok(PhysicalExprs::Column(index))
     }
 }

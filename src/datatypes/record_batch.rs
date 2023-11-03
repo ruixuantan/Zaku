@@ -4,6 +4,7 @@ use crate::error::ZakuError;
 
 use super::{
     column_vector::{Vector, Vectors},
+    prettifier::prettify,
     schema::Schema,
 };
 
@@ -46,6 +47,10 @@ impl RecordBatch {
             return Err(ZakuError::new("Index out of bounds"));
         }
         Ok(self.columns[*index].clone())
+    }
+
+    pub fn prettify(&self) -> String {
+        prettify(self)
     }
 }
 

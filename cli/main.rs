@@ -1,36 +1,41 @@
 use argparse::ArgumentParser;
-use zaku::{
-    error::ZakuError,
-    frontend::{
-        prettifier::prettify,
-        ui::{get_input, Command},
-    },
-    logical_plans::dataframe::Dataframe,
-    logical_plans::logical_plan::LogicalPlan,
-    physical_plans::physical_plan::PhysicalPlan,
-    sql::parser::parse,
-};
+use std::io::Write;
+use zaku::{execute, execute_with_plan, Dataframe, ZakuError};
 
-fn execute_sql(
-    sql: String,
-    df: Dataframe,
-    print_execution_plan: bool,
-) -> Result<String, ZakuError> {
-    let select_df = parse(sql.as_str(), df)?;
-    let plan = select_df.logical_plan();
-    let res = plan.to_physical_plan()?.execute();
-    let prettystr = prettify(&res);
-    if print_execution_plan {
-        return Ok(format!("{}\n\n{}", prettystr, plan));
+#[derive(Debug, PartialEq)]
+pub enum Command {
+    Quit,
+    Execute(String),
+}
+
+pub fn get_input() -> Result<Command, ZakuError> {
+    let mut input = String::new();
+    print!("Zaku >>> ");
+    std::io::stdout().flush()?;
+    std::io::stdin().read_line(&mut input)?;
+    input = input.trim().to_string();
+    if input.as_str() == "quit" {
+        return Ok(Command::Quit);
     }
-    Ok(prettystr)
+    Ok(Command::Execute(input))
+}
+
+fn execute_sql(sql: &str, df: Dataframe, print_execution_plan: bool) -> Result<String, ZakuError> {
+    if print_execution_plan {
+        let (res, plan_str) = execute_with_plan(sql, df)?;
+        let prettystr = res.prettify();
+        Ok(format!("{}\n\n{}", prettystr, plan_str))
+    } else {
+        let res = execute(sql, df)?;
+        Ok(res.prettify())
+    }
 }
 
 fn event_loop(df: Dataframe, print_execution_plan: bool) {
     let mut prev_cmd = Command::Execute("".to_string());
     while prev_cmd != Command::Quit {
         match get_input().map(|cmd| match cmd {
-            Command::Execute(sql) => match execute_sql(sql, df.clone(), print_execution_plan) {
+            Command::Execute(sql) => match execute_sql(&sql, df.clone(), print_execution_plan) {
                 Ok(res) => res,
                 Err(e) => e.to_string(),
             },
