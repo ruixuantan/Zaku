@@ -1,18 +1,19 @@
 use std::vec;
 
-use crate::datatypes::{
-    column_vector::{Vector, Vectors},
-    record_batch::RecordBatch,
-    schema::Schema,
+use crate::{
+    datatypes::{
+        column_vector::{Vector, Vectors},
+        schema::Schema,
+    },
+    Datasink,
 };
 
 const DIVIDER: &str = "|";
 
-fn compute_cell_space(schema: &Schema, record_batch: &RecordBatch) -> Vec<usize> {
+fn compute_cell_space(schema: &Schema, data: &Datasink) -> Vec<usize> {
     let size = schema.fields().iter().map(|f| f.alias().len());
 
-    record_batch
-        .iter()
+    data.iter()
         .zip(size)
         .map(|(col, curr_size)| match col.as_ref() {
             Vectors::ColumnVector(vector) => vector
@@ -47,9 +48,9 @@ fn get_divider(cell_space: &[usize]) -> String {
         .join("+")
 }
 
-pub fn prettify(record_batch: &RecordBatch) -> String {
-    let schema = record_batch.schema();
-    let cell_space = compute_cell_space(schema, record_batch);
+pub fn prettify(data: &Datasink) -> String {
+    let schema = data.schema();
+    let cell_space = compute_cell_space(schema, data);
     let mut results = vec![];
 
     let header = schema
@@ -64,13 +65,13 @@ pub fn prettify(record_batch: &RecordBatch) -> String {
     let divider = get_divider(&cell_space);
     results.push(divider);
 
-    let row_count = record_batch.row_count();
-    let col_count = record_batch.column_count();
+    let row_count = data.row_count();
+    let col_count = data.column_count();
 
     (0..row_count).for_each(|i| {
         let result: Vec<String> = (0..col_count)
             .map(|j| {
-                let value = record_batch
+                let value = data
                     .get(&j)
                     .expect("Index of record batch should not exceed size")
                     .get_value(&i)
@@ -91,11 +92,13 @@ mod test {
     use std::sync::Arc;
 
     use super::{compute_cell_space, get_divider, pad_value};
-    use crate::datatypes::{
-        column_vector::{ColumnVector, Vectors},
-        record_batch::RecordBatch,
-        schema::{Field, Schema},
-        types::{DataType, Value},
+    use crate::{
+        datatypes::{
+            column_vector::{ColumnVector, Vectors},
+            schema::{Field, Schema},
+            types::{DataType, Value},
+        },
+        Datasink,
     };
 
     #[test]
@@ -105,7 +108,7 @@ mod test {
             Field::new("name".to_string(), DataType::Text),
             Field::new("age".to_string(), DataType::Integer),
         ]);
-        let record_batch = RecordBatch::new(
+        let data = Datasink::new(
             schema.clone(),
             vec![
                 Arc::new(Vectors::ColumnVector(ColumnVector::new(
@@ -126,7 +129,7 @@ mod test {
                 ))),
             ],
         );
-        let cell_space = compute_cell_space(&schema, &record_batch);
+        let cell_space = compute_cell_space(&schema, &data);
         assert_eq!(cell_space, vec![2, 7, 3]);
     }
 

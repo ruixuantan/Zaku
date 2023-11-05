@@ -23,11 +23,11 @@ pub fn get_input() -> Result<Command, ZakuError> {
 fn execute_sql(sql: &str, df: Dataframe, print_execution_plan: bool) -> Result<String, ZakuError> {
     if print_execution_plan {
         let (res, plan_str) = execute_with_plan(sql, df)?;
-        let prettystr = res.prettify();
+        let prettystr = res.pretty_print();
         Ok(format!("{}\n\n{}", prettystr, plan_str))
     } else {
         let res = execute(sql, df)?;
-        Ok(res.prettify())
+        Ok(res.pretty_print())
     }
 }
 

@@ -1,6 +1,5 @@
-use std::sync::Arc;
-
 use enum_dispatch::enum_dispatch;
+use std::sync::Arc;
 
 use crate::{
     datasources::datasource::Datasource,
@@ -18,7 +17,7 @@ use super::physical_expr::{PhysicalExpr, PhysicalExprs};
 pub trait PhysicalPlan {
     fn schema(&self) -> Schema;
 
-    fn execute(&self) -> RecordBatch;
+    fn execute(&self) -> Box<dyn Iterator<Item = RecordBatch> + '_>;
 
     fn children(&self) -> Vec<PhysicalPlans>;
 }
@@ -52,8 +51,8 @@ impl PhysicalPlan for ScanExec {
         self.datasource.schema().select(&self.projection)
     }
 
-    fn execute(&self) -> RecordBatch {
-        self.datasource.record_batch().clone()
+    fn execute(&self) -> Box<dyn Iterator<Item = RecordBatch> + '_> {
+        self.datasource.scan()
     }
 
     fn children(&self) -> Vec<PhysicalPlans> {
@@ -87,14 +86,11 @@ impl PhysicalPlan for ProjectionExec {
         self.schema.clone()
     }
 
-    fn execute(&self) -> RecordBatch {
-        let record_batch = self.physical_plan.execute();
-        let columns = self
-            .expr
-            .iter()
-            .map(|e| e.evaluate(&record_batch))
-            .collect();
-        RecordBatch::new(self.schema.clone(), columns)
+    fn execute(&self) -> Box<dyn Iterator<Item = RecordBatch> + '_> {
+        Box::new(self.physical_plan.execute().map(|rb| {
+            let columns = self.expr.iter().map(|e| e.evaluate(&rb)).collect();
+            RecordBatch::new(self.schema.clone(), columns)
+        }))
     }
 
     fn children(&self) -> Vec<PhysicalPlans> {
@@ -124,25 +120,28 @@ impl PhysicalPlan for FilterExec {
         self.schema.clone()
     }
 
-    fn execute(&self) -> RecordBatch {
-        let record_batch = self.physical_plan.execute();
-        let eval_col = self.expr.evaluate(&record_batch);
+    fn execute(&self) -> Box<dyn Iterator<Item = RecordBatch> + '_> {
+        let res = self.physical_plan.execute().map(|rb| {
+            let eval_col = self.expr.evaluate(&rb);
 
-        let cols = record_batch
-            .iter()
-            .map(|c| {
-                Arc::new(Vectors::ColumnVector(ColumnVector::new(
-                    *c.get_type(),
-                    c.iter()
-                        .enumerate()
-                        .filter(|(i, _)| eval_col.get_value(i) == &Value::Boolean(true))
-                        .map(|(_, v)| v.clone())
-                        .collect(),
-                )))
-            })
-            .collect();
+            let cols = rb
+                .iter()
+                .map(|c| {
+                    Arc::new(Vectors::ColumnVector(ColumnVector::new(
+                        *c.get_type(),
+                        c.iter()
+                            .enumerate()
+                            .filter(|(i, _)| eval_col.get_value(i) == &Value::Boolean(true))
+                            .map(|(_, v)| v.clone())
+                            .collect(),
+                    )))
+                })
+                .collect();
 
-        RecordBatch::new(self.schema.clone(), cols)
+            RecordBatch::new(self.schema.clone(), cols)
+        });
+
+        Box::new(res)
     }
 
     fn children(&self) -> Vec<PhysicalPlans> {
@@ -172,19 +171,31 @@ impl PhysicalPlan for LimitExec {
         self.schema.clone()
     }
 
-    fn execute(&self) -> RecordBatch {
-        let record_batch = self.physical_plan.execute();
-        let cols = record_batch
-            .iter()
-            .map(|c| {
-                Arc::new(Vectors::ColumnVector(ColumnVector::new(
-                    *c.get_type(),
-                    c.iter().take(self.limit).cloned().collect(),
-                )))
-            })
-            .collect();
+    fn execute(&self) -> Box<dyn Iterator<Item = RecordBatch> + '_> {
+        let mut counter = self.limit;
+        let res = self.physical_plan.execute().map(move |rb| {
+            let take = if counter > rb.row_count() {
+                counter -= rb.row_count();
+                rb.row_count()
+            } else {
+                let temp = counter;
+                counter = 0;
+                temp
+            };
+            let cols = rb
+                .iter()
+                .map(|c| {
+                    Arc::new(Vectors::ColumnVector(ColumnVector::new(
+                        *c.get_type(),
+                        c.iter().take(take).cloned().collect(),
+                    )))
+                })
+                .collect();
 
-        RecordBatch::new(self.schema.clone(), cols)
+            RecordBatch::new(self.schema.clone(), cols)
+        });
+
+        Box::new(res)
     }
 
     fn children(&self) -> Vec<PhysicalPlans> {

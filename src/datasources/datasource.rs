@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::{
     datatypes::{
         column_vector::{ColumnVector, Vectors},
-        record_batch::RecordBatch,
+        record_batch::{RecordBatch, VECTOR_SIZE},
         schema::{Field, Schema},
         types::{DataType, Value},
     },
@@ -14,16 +14,12 @@ use crate::{
 pub struct Datasource {
     path: String,
     schema: Schema,
-    record_batch: RecordBatch,
+    data: Vec<RecordBatch>,
 }
 
 impl Datasource {
-    pub fn new(path: String, schema: Schema, record_batch: RecordBatch) -> Datasource {
-        Datasource {
-            path,
-            schema,
-            record_batch,
-        }
+    pub fn new(path: String, schema: Schema, data: Vec<RecordBatch>) -> Datasource {
+        Datasource { path, schema, data }
     }
 
     pub fn from_csv(path: &str) -> Result<Datasource, ZakuError> {
@@ -40,8 +36,12 @@ impl Datasource {
         &self.path
     }
 
-    pub fn record_batch(&self) -> &RecordBatch {
-        &self.record_batch
+    pub fn get_data(&self) -> &Vec<RecordBatch> {
+        &self.data
+    }
+
+    pub fn scan(&self) -> Box<dyn Iterator<Item = RecordBatch> + '_> {
+        Box::new(DatasourceIterator::new(&self.data.iter()))
     }
 
     fn get_csv_schema(path: &str) -> Result<Schema, ZakuError> {
@@ -63,22 +63,8 @@ impl Datasource {
         Ok(Schema::new(fields))
     }
 
-    fn load_csv_data(path: &str, schema: Schema) -> Result<RecordBatch, ZakuError> {
-        let mut rdr = csv::Reader::from_path(path)?;
-        let mut cols: Vec<Vec<Value>> = schema.fields().iter().map(|_| Vec::new()).collect();
-
-        rdr.records().try_for_each(|r| {
-            let record = r?;
-            record.iter().enumerate().try_for_each(|(i, str_val)| {
-                let datatype = schema.get_datatype_from_index(&i)?;
-                let val = Value::get_value_from_string_val(str_val, datatype);
-                cols[i].push(val);
-                Ok::<(), ZakuError>(())
-            })?;
-            Ok::<(), ZakuError>(())
-        })?;
-        let arc_cols = cols
-            .into_iter()
+    fn make_arc_cols(cols: Vec<Vec<Value>>, schema: &Schema) -> Vec<Arc<Vectors>> {
+        cols.into_iter()
             .enumerate()
             .map(|(i, c)| {
                 Arc::new(Vectors::ColumnVector(ColumnVector::new(
@@ -88,8 +74,53 @@ impl Datasource {
                     c,
                 )))
             })
-            .collect();
-        Ok(RecordBatch::new(schema, arc_cols))
+            .collect()
+    }
+
+    fn load_csv_data(path: &str, schema: Schema) -> Result<Vec<RecordBatch>, ZakuError> {
+        let mut rdr = csv::Reader::from_path(path)?;
+        let mut data = vec![];
+        let mut tracker: usize = 0;
+        let schema_len = schema.fields().len();
+        let mut cols: Vec<Vec<Value>> = (0..schema_len).map(|_| Vec::new()).collect();
+
+        for record in rdr.records() {
+            let r = record?;
+            if tracker == VECTOR_SIZE {
+                let arc_cols = Datasource::make_arc_cols(cols, &schema);
+                data.push(RecordBatch::new(schema.clone(), arc_cols));
+                tracker = 0;
+                cols = (0..schema_len).map(|_| Vec::new()).collect();
+            }
+
+            for i in 0..schema.fields().len() {
+                let datatype = schema.get_datatype_from_index(&i)?;
+                let val = Value::get_value_from_string_val(&r[i], datatype);
+                cols[i].push(val);
+            }
+        }
+
+        let arc_cols = Datasource::make_arc_cols(cols, &schema);
+        data.push(RecordBatch::new(schema.clone(), arc_cols));
+        Ok(data)
+    }
+}
+
+pub struct DatasourceIterator<'a> {
+    data: std::slice::Iter<'a, RecordBatch>,
+}
+
+impl<'a> DatasourceIterator<'a> {
+    pub fn new(data: &std::slice::Iter<'a, RecordBatch>) -> DatasourceIterator<'a> {
+        DatasourceIterator { data: data.clone() }
+    }
+}
+
+impl<'a> Iterator for DatasourceIterator<'a> {
+    type Item = RecordBatch;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.data.next().cloned()
     }
 }
 
@@ -126,11 +157,11 @@ mod test {
 
     #[test]
     fn test_load_csv_data() {
-        let record_batch = Datasource::load_csv_data(
+        let record_batch = &Datasource::load_csv_data(
             &csv_test_file(),
             Datasource::get_csv_schema(&csv_test_file()).unwrap(),
         )
-        .unwrap();
+        .unwrap()[0];
         assert_eq!(record_batch.row_count(), 5);
         assert_eq!(record_batch.column_count(), 5);
 
