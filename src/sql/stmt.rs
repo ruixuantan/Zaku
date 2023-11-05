@@ -5,6 +5,7 @@ use crate::logical_plans::dataframe::Dataframe;
 pub enum Stmt {
     Select(Dataframe),
     Explain(Dataframe),
+    CopyTo(Dataframe, String),
 }
 
 pub struct SelectStmt {

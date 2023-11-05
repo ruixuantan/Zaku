@@ -30,10 +30,18 @@ fn execute_explain(df: Dataframe) -> Result<Datasink, ZakuError> {
     Ok(Datasink::new(schema, col))
 }
 
+fn execute_copy(df: Dataframe, path: &String) -> Result<Datasink, ZakuError> {
+    let res = df.logical_plan().to_physical_plan()?.execute().collect();
+    let ds = Datasink::from_record_batches(res);
+    let _ = ds.to_csv(path);
+    Ok(ds)
+}
+
 pub fn execute(sql: &str, df: Dataframe) -> Result<Datasink, ZakuError> {
     let select_df = sql::parser::parse(sql, df)?;
     match select_df {
         Stmt::Select(df) => execute_select(df),
         Stmt::Explain(df) => execute_explain(df),
+        Stmt::CopyTo(df, path) => execute_copy(df, &path),
     }
 }

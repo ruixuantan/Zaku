@@ -3,7 +3,7 @@ use std::ops::Deref;
 use sqlparser::{
     ast::Expr,
     ast::Select,
-    ast::Statement,
+    ast::{CopySource, CopyTarget, Statement},
     ast::{Query, SelectItem},
 };
 
@@ -100,6 +100,32 @@ fn create_df(select: &SelectStmt, dataframe: Dataframe) -> Result<Dataframe, Zak
     Ok(df)
 }
 
+fn parse_copy(
+    df: Dataframe,
+    to: &bool,
+    source: &CopySource,
+    target: &CopyTarget,
+) -> Result<Stmt, ZakuError> {
+    if to == &false {
+        return Err(ZakuError::new("COPY FROM is not supported"));
+    }
+
+    let filename = match target {
+        CopyTarget::File { filename } => Ok(filename),
+        _ => Err(ZakuError::new("COPY is only supported to csv files")),
+    };
+
+    let df = match source {
+        CopySource::Query(query) => {
+            let select_stmt = parse_select(query)?;
+            create_df(&select_stmt, df)
+        }
+        _ => Err(ZakuError::new("COPY is only supported from SELECT queries")),
+    };
+
+    Ok(Stmt::CopyTo(df?, filename?.to_string()))
+}
+
 pub fn parse(sql: &str, df: Dataframe) -> Result<Stmt, ZakuError> {
     let dialect = sqlparser::dialect::GenericDialect {};
     let ast = sqlparser::parser::Parser::parse_sql(&dialect, sql)?;
@@ -119,6 +145,14 @@ pub fn parse(sql: &str, df: Dataframe) -> Result<Stmt, ZakuError> {
             }
             _ => Err(ZakuError::new("Only SELECT queris are supported")),
         },
+        Statement::Copy {
+            source,
+            to,
+            target,
+            options: _,
+            legacy_options: _,
+            values: _,
+        } => parse_copy(df, to, source, target),
         Statement::Query(query) => {
             let select_stmt = parse_select(query)?;
             let df = create_df(&select_stmt, df)?;

@@ -98,6 +98,13 @@ impl Schema {
             .collect();
         Schema::new(selected_fields)
     }
+
+    pub fn as_header(&self) -> Vec<String> {
+        self.fields
+            .iter()
+            .map(|f| f.alias())
+            .collect::<Vec<String>>()
+    }
 }
 
 #[cfg(test)]

@@ -1,3 +1,4 @@
+use csv::Writer;
 use std::sync::Arc;
 
 use crate::{
@@ -59,6 +60,22 @@ impl Datasink {
 
     pub fn pretty_print(&self) -> String {
         prettify(self)
+    }
+
+    pub fn to_csv(&self, path: &String) -> Result<(), ZakuError> {
+        let mut file = Writer::from_path(path)?;
+        file.write_record(self.schema.as_header())?;
+
+        (0..self.row_count()).for_each(|i| {
+            let row = self
+                .iter()
+                .map(|col| col.get_value(&i).to_string())
+                .collect::<Vec<String>>();
+            file.write_record(row).unwrap();
+        });
+        file.flush()?;
+
+        Ok(())
     }
 }
 
