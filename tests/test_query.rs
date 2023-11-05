@@ -12,3 +12,9 @@ fn basic_query() {
     let sql = "SELECT * FROM test";
     assert!(run(sql).is_ok());
 }
+
+#[test]
+fn explain_query() {
+    let sql = "EXPLAIN SELECT * FROM test";
+    assert!(run(sql).is_ok());
+}

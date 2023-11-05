@@ -1,12 +1,11 @@
 use std::vec;
 
-use crate::{
-    datatypes::{
-        column_vector::{Vector, Vectors},
-        schema::Schema,
-    },
-    Datasink,
+use crate::datatypes::{
+    column_vector::{Vector, Vectors},
+    schema::Schema,
 };
+
+use super::datasink::Datasink;
 
 const DIVIDER: &str = "|";
 
@@ -91,14 +90,11 @@ pub fn prettify(data: &Datasink) -> String {
 mod test {
     use std::sync::Arc;
 
-    use super::{compute_cell_space, get_divider, pad_value};
-    use crate::{
-        datatypes::{
-            column_vector::{ColumnVector, Vectors},
-            schema::{Field, Schema},
-            types::{DataType, Value},
-        },
-        Datasink,
+    use super::{compute_cell_space, get_divider, pad_value, Datasink};
+    use crate::datatypes::{
+        column_vector::{ColumnVector, Vectors},
+        schema::{Field, Schema},
+        types::{DataType, Value},
     };
 
     #[test]

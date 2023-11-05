@@ -6,7 +6,7 @@ use crate::{
         record_batch::RecordBatch,
         schema::Schema,
     },
-    ZakuError,
+    error::ZakuError,
 };
 
 use super::prettifier::prettify;

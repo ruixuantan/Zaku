@@ -5,6 +5,6 @@ test:
 	cargo test | cargo clippy --all-targets --all-features -- -D warnings
 
 cli:
-	./target/release/cli -e resources/test.csv
+	./target/release/cli resources/test.csv
 
 .PHONY: cli

@@ -1,6 +1,6 @@
 use argparse::ArgumentParser;
 use std::io::Write;
-use zaku::{execute, execute_with_plan, Dataframe, ZakuError};
+use zaku::{execute, Dataframe, ZakuError};
 
 #[derive(Debug, PartialEq)]
 pub enum Command {
@@ -20,22 +20,16 @@ pub fn get_input() -> Result<Command, ZakuError> {
     Ok(Command::Execute(input))
 }
 
-fn execute_sql(sql: &str, df: Dataframe, print_execution_plan: bool) -> Result<String, ZakuError> {
-    if print_execution_plan {
-        let (res, plan_str) = execute_with_plan(sql, df)?;
-        let prettystr = res.pretty_print();
-        Ok(format!("{}\n\n{}", prettystr, plan_str))
-    } else {
-        let res = execute(sql, df)?;
-        Ok(res.pretty_print())
-    }
+fn execute_sql(sql: &str, df: Dataframe) -> Result<String, ZakuError> {
+    let res = execute(sql, df)?;
+    Ok(res.pretty_print())
 }
 
-fn event_loop(df: Dataframe, print_execution_plan: bool) {
+fn event_loop(df: Dataframe) {
     let mut prev_cmd = Command::Execute("".to_string());
     while prev_cmd != Command::Quit {
         match get_input().map(|cmd| match cmd {
-            Command::Execute(sql) => match execute_sql(&sql, df.clone(), print_execution_plan) {
+            Command::Execute(sql) => match execute_sql(&sql, df.clone()) {
                 Ok(res) => res,
                 Err(e) => e.to_string(),
             },
@@ -51,16 +45,10 @@ fn event_loop(df: Dataframe, print_execution_plan: bool) {
 }
 
 fn main() {
-    let mut execution_plan = false;
     let mut path = "resources/test.csv".to_string();
     {
         let mut parser = ArgumentParser::new();
         parser.set_description("Zaku is a simple SQL query enginer on CSV files written in Rust");
-        parser.refer(&mut execution_plan).add_option(
-            &["-e", "--execution-plan"],
-            argparse::StoreTrue,
-            "Prints the execution plan of the query",
-        );
         parser
             .refer(&mut path)
             .add_argument("path", argparse::Store, "Path to CSV file");
@@ -68,7 +56,7 @@ fn main() {
     }
 
     match Dataframe::from_csv(&path) {
-        Ok(df) => event_loop(df, execution_plan),
+        Ok(df) => event_loop(df),
         Err(e) => println!("Failed to load CSV file: {}", e),
     }
 }
