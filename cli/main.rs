@@ -1,5 +1,5 @@
 use argparse::ArgumentParser;
-use std::io::Write;
+use std::{io::Write, path::Path};
 use zaku::{execute, Dataframe, ZakuError};
 
 #[derive(Debug, PartialEq)]
@@ -45,7 +45,7 @@ fn event_loop(df: Dataframe) {
 }
 
 fn main() {
-    let mut path = "resources/test.csv".to_string();
+    let mut path = Path::new("resources").join("test.csv");
     {
         let mut parser = ArgumentParser::new();
         parser.set_description("Zaku is a simple SQL query enginer on CSV files written in Rust");
@@ -55,7 +55,10 @@ fn main() {
         parser.parse_args_or_exit();
     }
 
-    match Dataframe::from_csv(&path) {
+    match Dataframe::from_csv(
+        path.to_str()
+            .expect("File test.csv should exist in resources directory"),
+    ) {
         Ok(df) => event_loop(df),
         Err(e) => println!("Failed to load CSV file: {}", e),
     }

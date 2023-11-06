@@ -126,7 +126,7 @@ impl<'a> Iterator for DatasourceIterator<'a> {
 
 #[cfg(test)]
 mod test {
-    use std::{sync::Arc, vec};
+    use std::{path::Path, sync::Arc, vec};
 
     use crate::datatypes::{
         column_vector::{ColumnVector, Vectors},
@@ -137,7 +137,11 @@ mod test {
     use super::Datasource;
 
     fn csv_test_file() -> String {
-        "resources/test.csv".to_string()
+        Path::new("resources")
+            .join("test.csv")
+            .to_str()
+            .expect("test.csv file should exist")
+            .to_string()
     }
 
     #[test]

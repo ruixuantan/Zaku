@@ -1,8 +1,11 @@
+use std::path::Path;
+
 use zaku::{execute, Dataframe, Datasink, ZakuError};
 
 fn run(sql: &str) -> Result<Datasink, ZakuError> {
-    let path = "resources/test.csv".to_string();
-    let df = Dataframe::from_csv(&path)?;
+    let binding = Path::new("resources").join("test.csv");
+    let path = binding.to_str().expect("test.csv file should exist");
+    let df = Dataframe::from_csv(path)?;
     let res = execute(sql, df)?;
     Ok(res)
 }
