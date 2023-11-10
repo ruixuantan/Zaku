@@ -7,12 +7,18 @@ use crate::{
     datatypes::schema::{Field, Schema},
     error::ZakuError,
     physical_plans::{
+        accumulator::AggregateExpressions,
         physical_expr::PhysicalExprs,
-        physical_plan::{FilterExec, LimitExec, PhysicalPlans, ProjectionExec, ScanExec},
+        physical_plan::{
+            FilterExec, HashAggregateExec, LimitExec, PhysicalPlans, ProjectionExec, ScanExec,
+        },
     },
 };
 
-use super::logical_expr::{LogicalExpr, LogicalExprs};
+use super::{
+    aggregate_expr::AggregateExprs,
+    logical_expr::{LogicalExpr, LogicalExprs},
+};
 
 #[enum_dispatch]
 pub trait LogicalPlan {
@@ -29,6 +35,7 @@ pub enum LogicalPlans {
     Projection(Projection),
     Filter(Filter),
     Limit(Limit),
+    Aggregate(Aggregate),
 }
 
 impl LogicalPlans {
@@ -233,6 +240,84 @@ impl LogicalPlan for Limit {
             self.schema(),
             physical_plan,
             self.limit,
+        )))
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Aggregate {
+    schema: Schema,
+    logical_plan: Box<LogicalPlans>,
+    group_expr: Vec<LogicalExprs>,
+    aggregate_expr: Vec<AggregateExprs>,
+}
+
+impl Aggregate {
+    pub fn new(
+        logical_plan: LogicalPlans,
+        group_expr: Vec<LogicalExprs>,
+        aggregate_expr: Vec<AggregateExprs>,
+    ) -> Result<Aggregate, ZakuError> {
+        let mut group_fields = group_expr
+            .iter()
+            .map(|e| e.to_field(&logical_plan))
+            .collect::<Result<Vec<Field>, _>>()?;
+        let mut aggregate_fields = aggregate_expr
+            .iter()
+            .map(|e| e.to_field(&logical_plan))
+            .collect::<Result<Vec<Field>, _>>()?;
+        group_fields.append(&mut aggregate_fields);
+        Ok(Aggregate {
+            schema: Schema::new(group_fields),
+            logical_plan: Box::new(logical_plan),
+            group_expr,
+            aggregate_expr,
+        })
+    }
+}
+
+impl LogicalPlan for Aggregate {
+    fn schema(&self) -> Schema {
+        self.schema.clone()
+    }
+
+    fn children(&self) -> Vec<LogicalPlans> {
+        vec![*self.logical_plan.clone()]
+    }
+
+    fn to_string(&self) -> String {
+        format!(
+            "Aggregate: group by={}, aggregate={}",
+            self.group_expr
+                .iter()
+                .map(|e| e.to_string())
+                .collect::<Vec<String>>()
+                .join(", "),
+            self.aggregate_expr
+                .iter()
+                .map(|e| e.to_string())
+                .collect::<Vec<String>>()
+                .join(", ")
+        )
+    }
+
+    fn to_physical_plan(&self) -> Result<PhysicalPlans, ZakuError> {
+        let physical_plan = self.logical_plan.to_physical_plan()?;
+        let physical_group_expr = self
+            .group_expr
+            .iter()
+            .map(|e| e.to_physical_expr(&self.logical_plan))
+            .collect::<Result<Vec<PhysicalExprs>, _>>()?;
+        let physical_aggregate_expr = self
+            .aggregate_expr
+            .iter()
+            .map(|e| e.to_physical_aggregate(&self.logical_plan))
+            .collect::<Result<Vec<AggregateExpressions>, _>>()?;
+        Ok(PhysicalPlans::HashAggregate(HashAggregateExec::new(
+            physical_plan,
+            physical_group_expr,
+            physical_aggregate_expr,
+            self.schema(),
         )))
     }
 }

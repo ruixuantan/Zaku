@@ -1,4 +1,7 @@
-use std::fmt::{Display, Formatter};
+use std::{
+    fmt::{Display, Formatter},
+    hash::Hash,
+};
 
 #[derive(Clone, Copy, Debug, PartialEq, Default)]
 pub enum DataType {
@@ -15,6 +18,7 @@ pub enum Value {
     Float(f32),
     Text(String),
     Boolean(bool),
+    Null,
 }
 
 impl DataType {
@@ -34,6 +38,9 @@ impl DataType {
 
 impl Value {
     pub fn get_value_from_string_val(val: &str, datatype: &DataType) -> Value {
+        if val.is_empty() {
+            return Value::Null;
+        }
         match datatype {
             DataType::Integer => Value::Integer(
                 val.parse::<i32>()
@@ -76,21 +83,26 @@ impl Value {
             Value::Integer(l) => match other {
                 Value::Integer(r) => Value::Boolean(*l == *r),
                 Value::Float(r) => Value::Boolean(*l as f32 == *r),
+                Value::Null => Value::Boolean(false),
                 _ => panic!("Type mismatch"),
             },
             Value::Float(l) => match other {
                 Value::Float(r) => Value::Boolean(*l == *r),
                 Value::Integer(r) => Value::Boolean(*l == *r as f32),
+                Value::Null => Value::Boolean(false),
                 _ => panic!("Type mismatch"),
             },
             Value::Boolean(l) => match other {
                 Value::Boolean(r) => Value::Boolean(*l == *r),
+                Value::Null => Value::Boolean(false),
                 _ => panic!("Type mismatch"),
             },
             Value::Text(l) => match other {
                 Value::Text(r) => Value::Boolean(*l == *r),
+                Value::Null => Value::Boolean(false),
                 _ => panic!("Type mismatch"),
             },
+            Value::Null => Value::Boolean(false),
         }
     }
 
@@ -99,21 +111,26 @@ impl Value {
             Value::Integer(l) => match other {
                 Value::Integer(r) => Value::Boolean(*l != *r),
                 Value::Float(r) => Value::Boolean(*l as f32 != *r),
+                Value::Null => Value::Boolean(false),
                 _ => panic!("Type mismatch"),
             },
             Value::Float(l) => match other {
                 Value::Float(r) => Value::Boolean(*l != *r),
                 Value::Integer(r) => Value::Boolean(*l != *r as f32),
+                Value::Null => Value::Boolean(false),
                 _ => panic!("Type mismatch"),
             },
             Value::Boolean(l) => match other {
                 Value::Boolean(r) => Value::Boolean(*l != *r),
+                Value::Null => Value::Boolean(false),
                 _ => panic!("Type mismatch"),
             },
             Value::Text(l) => match other {
                 Value::Text(r) => Value::Boolean(*l != *r),
+                Value::Null => Value::Boolean(false),
                 _ => panic!("Type mismatch"),
             },
+            Value::Null => Value::Boolean(false),
         }
     }
 
@@ -122,18 +139,22 @@ impl Value {
             Value::Integer(l) => match other {
                 Value::Integer(r) => Value::Boolean(*l > *r),
                 Value::Float(r) => Value::Boolean(*l as f32 > *r),
+                Value::Null => Value::Boolean(false),
                 _ => panic!("Type mismatch"),
             },
             Value::Float(l) => match other {
                 Value::Float(r) => Value::Boolean(*l > *r),
                 Value::Integer(r) => Value::Boolean(*l > *r as f32),
+                Value::Null => Value::Boolean(false),
                 _ => panic!("Type mismatch"),
             },
             Value::Boolean(_) => panic!("Type mismatch"),
             Value::Text(l) => match other {
                 Value::Text(r) => Value::Boolean(*l > *r),
+                Value::Null => Value::Boolean(false),
                 _ => panic!("Type mismatch"),
             },
+            Value::Null => Value::Boolean(false),
         }
     }
 
@@ -142,18 +163,22 @@ impl Value {
             Value::Integer(l) => match other {
                 Value::Integer(r) => Value::Boolean(*l >= *r),
                 Value::Float(r) => Value::Boolean(*l as f32 >= *r),
+                Value::Null => Value::Boolean(false),
                 _ => panic!("Type mismatch"),
             },
             Value::Float(l) => match other {
                 Value::Float(r) => Value::Boolean(*l >= *r),
                 Value::Integer(r) => Value::Boolean(*l >= *r as f32),
+                Value::Null => Value::Boolean(false),
                 _ => panic!("Type mismatch"),
             },
             Value::Boolean(_) => panic!("Type mismatch"),
             Value::Text(l) => match other {
                 Value::Text(r) => Value::Boolean(*l >= *r),
+                Value::Null => Value::Boolean(false),
                 _ => panic!("Type mismatch"),
             },
+            Value::Null => Value::Boolean(false),
         }
     }
 
@@ -162,18 +187,22 @@ impl Value {
             Value::Integer(l) => match other {
                 Value::Integer(r) => Value::Boolean(*l < *r),
                 Value::Float(r) => Value::Boolean(*r > *l as f32),
+                Value::Null => Value::Boolean(false),
                 _ => panic!("Type mismatch"),
             },
             Value::Float(l) => match other {
                 Value::Float(r) => Value::Boolean(*l < *r),
                 Value::Integer(r) => Value::Boolean(*l < *r as f32),
+                Value::Null => Value::Boolean(false),
                 _ => panic!("Type mismatch"),
             },
             Value::Boolean(_) => panic!("Type mismatch"),
             Value::Text(l) => match other {
                 Value::Text(r) => Value::Boolean(*l < *r),
+                Value::Null => Value::Boolean(false),
                 _ => panic!("Type mismatch"),
             },
+            Value::Null => Value::Boolean(false),
         }
     }
 
@@ -182,18 +211,22 @@ impl Value {
             Value::Integer(l) => match other {
                 Value::Integer(r) => Value::Boolean(*l <= *r),
                 Value::Float(r) => Value::Boolean(*l as f32 <= *r),
+                Value::Null => Value::Boolean(false),
                 _ => panic!("Type mismatch"),
             },
             Value::Float(l) => match other {
                 Value::Float(r) => Value::Boolean(*l <= *r),
                 Value::Integer(r) => Value::Boolean(*l <= *r as f32),
+                Value::Null => Value::Boolean(false),
                 _ => panic!("Type mismatch"),
             },
             Value::Boolean(_) => panic!("Type mismatch"),
             Value::Text(l) => match other {
                 Value::Text(r) => Value::Boolean(*l <= *r),
+                Value::Null => Value::Boolean(false),
                 _ => panic!("Type mismatch"),
             },
+            Value::Null => Value::Boolean(false),
         }
     }
 
@@ -202,18 +235,17 @@ impl Value {
             Value::Integer(l) => match other {
                 Value::Integer(r) => Value::Integer(*l + *r),
                 Value::Float(r) => Value::Float(*l as f32 + *r),
+                Value::Null => Value::Null,
                 _ => panic!("Type mismatch"),
             },
             Value::Float(l) => match other {
                 Value::Integer(r) => Value::Float(*l + *r as f32),
                 Value::Float(r) => Value::Float(*l + *r),
+                Value::Null => Value::Null,
                 _ => panic!("Type mismatch"),
             },
-            Value::Boolean(_) => panic!("Type not supported for addition"),
-            Value::Text(l) => match other {
-                Value::Text(r) => Value::Text(format!("{}{}", l, r)),
-                _ => panic!("Type mismatch"),
-            },
+            Value::Null => Value::Null,
+            _ => panic!("Type not supported for addition"),
         }
     }
 
@@ -222,15 +254,17 @@ impl Value {
             Value::Integer(l) => match other {
                 Value::Integer(r) => Value::Integer(*l - *r),
                 Value::Float(r) => Value::Float(*l as f32 - *r),
+                Value::Null => Value::Null,
                 _ => panic!("Type mismatch"),
             },
             Value::Float(l) => match other {
                 Value::Integer(r) => Value::Float(*l - *r as f32),
                 Value::Float(r) => Value::Float(*l - *r),
+                Value::Null => Value::Null,
                 _ => panic!("Type mismatch"),
             },
-            Value::Boolean(_) => panic!("Type not supported for subtraction"),
-            Value::Text(_) => panic!("Type not supported for subtraction"),
+            Value::Null => Value::Null,
+            _ => panic!("Type not supported for subtraction"),
         }
     }
 
@@ -239,15 +273,19 @@ impl Value {
             Value::Integer(l) => match other {
                 Value::Integer(r) => Value::Integer(*l * *r),
                 Value::Float(r) => Value::Float(*l as f32 * *r),
+                Value::Null => Value::Null,
+
                 _ => panic!("Type mismatch"),
             },
             Value::Float(l) => match other {
                 Value::Integer(r) => Value::Float(*l * *r as f32),
                 Value::Float(r) => Value::Float(*l * *r),
+                Value::Null => Value::Null,
+
                 _ => panic!("Type mismatch"),
             },
-            Value::Boolean(_) => panic!("Type not supported for multiplication"),
-            Value::Text(_) => panic!("Type not supported for multiplication"),
+            Value::Null => Value::Null,
+            _ => panic!("Type not supported for multiplication"),
         }
     }
 
@@ -256,15 +294,17 @@ impl Value {
             Value::Integer(l) => match other {
                 Value::Integer(r) => Value::Integer(*l / *r),
                 Value::Float(r) => Value::Float(*l as f32 / *r),
+                Value::Null => Value::Null,
                 _ => panic!("Type mismatch"),
             },
             Value::Float(l) => match other {
                 Value::Integer(r) => Value::Float(*l / *r as f32),
                 Value::Float(r) => Value::Float(*l / *r),
+                Value::Null => Value::Null,
                 _ => panic!("Type mismatch"),
             },
-            Value::Boolean(_) => panic!("Type not supported for division"),
-            Value::Text(_) => panic!("Type not supported for division"),
+            Value::Null => Value::Null,
+            _ => panic!("Type not supported for division"),
         }
     }
 
@@ -273,15 +313,57 @@ impl Value {
             Value::Integer(l) => match other {
                 Value::Integer(r) => Value::Integer(*l % *r),
                 Value::Float(r) => Value::Float(*l as f32 % *r),
+                Value::Null => Value::Null,
                 _ => panic!("Type mismatch"),
             },
             Value::Float(l) => match other {
                 Value::Integer(r) => Value::Float(*l % *r as f32),
                 Value::Float(r) => Value::Float(*l % *r),
+                Value::Null => Value::Null,
                 _ => panic!("Type mismatch"),
             },
-            Value::Boolean(_) => panic!("Type not supported for modulo"),
-            Value::Text(_) => panic!("Type not supported for modulo"),
+            Value::Null => Value::Null,
+            _ => panic!("Type not supported for modulo"),
+        }
+    }
+
+    pub fn maximum(&self, other: &Value) -> Value {
+        match self {
+            Value::Integer(l) => match other {
+                Value::Integer(r) => Value::Integer(*l.max(r)),
+                Value::Null => self.clone(),
+                _ => panic!("Type mismatch"),
+            },
+            Value::Float(l) => match other {
+                Value::Float(r) => Value::Float(l.max(*r)),
+                Value::Null => self.clone(),
+                _ => panic!("Type mismatch"),
+            },
+            Value::Null => match other {
+                Value::Null | Value::Float(_) | Value::Integer(_) => other.clone(),
+                _ => panic!("Type not supported for max"),
+            },
+            _ => panic!("Type not supported for max"),
+        }
+    }
+
+    pub fn minimum(&self, other: &Value) -> Value {
+        match self {
+            Value::Integer(l) => match other {
+                Value::Integer(r) => Value::Integer(*l.min(r)),
+                Value::Null => self.clone(),
+                _ => panic!("Type mismatch"),
+            },
+            Value::Float(l) => match other {
+                Value::Float(r) => Value::Float(l.min(*r)),
+                Value::Null => self.clone(),
+                _ => panic!("Type mismatch"),
+            },
+            Value::Null => match other {
+                Value::Null | Value::Float(_) | Value::Integer(_) => other.clone(),
+                _ => panic!("Type not supported for max"),
+            },
+            _ => panic!("Type not supported for min"),
         }
     }
 }
@@ -293,6 +375,21 @@ impl Display for Value {
             Value::Float(val) => write!(f, "{}", val),
             Value::Boolean(val) => write!(f, "{}", val),
             Value::Text(val) => write!(f, "{}", val),
+            Value::Null => write!(f, ""),
+        }
+    }
+}
+
+impl Eq for Value {}
+
+impl Hash for Value {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        match self {
+            Value::Integer(val) => val.hash(state),
+            Value::Float(val) => val.to_bits().hash(state),
+            Value::Boolean(val) => val.hash(state),
+            Value::Text(val) => val.hash(state),
+            Value::Null => 0.hash(state),
         }
     }
 }

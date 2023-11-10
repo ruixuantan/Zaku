@@ -64,5 +64,10 @@ fn create_literal(val: Value, size: usize) -> Arc<Vectors> {
             val,
             size,
         ))),
+        Value::Null => Arc::new(Vectors::LiteralVector(LiteralVector::new(
+            DataType::default(),
+            val,
+            size,
+        ))),
     }
 }

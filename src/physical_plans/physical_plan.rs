@@ -1,5 +1,5 @@
 use enum_dispatch::enum_dispatch;
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use crate::{
     datasources::datasource::Datasource,
@@ -9,9 +9,13 @@ use crate::{
         schema::Schema,
         types::Value,
     },
+    physical_plans::accumulator::{Accumulator, Accumulators},
 };
 
-use super::physical_expr::{PhysicalExpr, PhysicalExprs};
+use super::{
+    accumulator::AggregateExpressions,
+    physical_expr::{PhysicalExpr, PhysicalExprs},
+};
 
 #[enum_dispatch]
 pub trait PhysicalPlan {
@@ -29,6 +33,7 @@ pub enum PhysicalPlans {
     Projection(ProjectionExec),
     Filter(FilterExec),
     Limit(LimitExec),
+    HashAggregate(HashAggregateExec),
 }
 
 #[derive(Clone)]
@@ -200,5 +205,102 @@ impl PhysicalPlan for LimitExec {
 
     fn children(&self) -> Vec<PhysicalPlans> {
         vec![*self.physical_plan.clone()]
+    }
+}
+
+#[derive(Clone)]
+pub struct HashAggregateExec {
+    input: Box<PhysicalPlans>,
+    group_expr: Vec<PhysicalExprs>,
+    aggr_expr: Vec<AggregateExpressions>,
+    schema: Schema,
+}
+
+impl HashAggregateExec {
+    pub fn new(
+        input: PhysicalPlans,
+        group_expr: Vec<PhysicalExprs>,
+        aggr_expr: Vec<AggregateExpressions>,
+        schema: Schema,
+    ) -> HashAggregateExec {
+        HashAggregateExec {
+            input: Box::new(input),
+            group_expr,
+            aggr_expr,
+            schema,
+        }
+    }
+}
+
+impl PhysicalPlan for HashAggregateExec {
+    fn schema(&self) -> Schema {
+        self.schema.clone()
+    }
+
+    fn execute(&self) -> Box<dyn Iterator<Item = RecordBatch> + '_> {
+        let mut aggregator_map: HashMap<Vec<Value>, Vec<Accumulators>> = HashMap::new();
+        self.input.execute().for_each(|rb| {
+            let group_keys: Vec<Arc<Vectors>> =
+                self.group_expr.iter().map(|e| e.evaluate(&rb)).collect();
+            let aggr_input: Vec<Arc<Vectors>> = self
+                .aggr_expr
+                .iter()
+                .map(|e| e.input_expr().evaluate(&rb))
+                .collect();
+
+            (0..rb.row_count()).for_each(|i| {
+                let row_key: Vec<Value> = group_keys
+                    .iter()
+                    .map(|key| key.get_value(&i).clone())
+                    .collect();
+
+                let accumulators = aggregator_map.entry(row_key).or_insert_with(|| {
+                    self.aggr_expr
+                        .iter()
+                        .map(|e| e.create_accumulator())
+                        .collect()
+                });
+
+                accumulators
+                    .iter_mut()
+                    .zip(aggr_input.iter())
+                    .for_each(|(a, v)| {
+                        a.accumulate(v.get_value(&i)).unwrap();
+                    });
+            });
+        });
+
+        let mut columns: Vec<Vec<Value>> =
+            self.schema().fields().iter().map(|_| Vec::new()).collect();
+        aggregator_map.into_iter().for_each(|(k, v)| {
+            let mut i = 0;
+            k.into_iter().for_each(|key| {
+                columns[i].push(key);
+                i += 1;
+            });
+            v.into_iter().for_each(|a| {
+                columns[i].push(a.get_value());
+                i += 1;
+            });
+        });
+        let arc_cols: Vec<Arc<Vectors>> = columns
+            .iter()
+            .enumerate()
+            .map(|(i, col)| {
+                Arc::new(Vectors::ColumnVector(ColumnVector::new(
+                    *self
+                        .schema()
+                        .get_datatype_from_index(&i)
+                        .expect("Index was taken from schema length"),
+                    col.clone(),
+                )))
+            })
+            .collect();
+        let _ = [RecordBatch::new(self.schema.clone(), arc_cols)].iter();
+        todo!()
+    }
+
+    fn children(&self) -> Vec<PhysicalPlans> {
+        vec![*self.input.clone()]
     }
 }

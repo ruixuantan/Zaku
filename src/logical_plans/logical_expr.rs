@@ -7,6 +7,7 @@ use crate::{
 };
 
 use super::{
+    aggregate_expr::AggregateExprs,
     binary_expr::BinaryExpr,
     binary_expr::BinaryExprs,
     logical_plan::{LogicalPlan, LogicalPlans},
@@ -26,6 +27,7 @@ pub enum LogicalExprs {
     LiteralInteger(i32, Option<String>),
     LiteralFloat(f32, Option<String>),
     BinaryExpr(BinaryExprs, Option<String>),
+    AggregateExpr(AggregateExprs, Option<String>),
 }
 
 impl LogicalExprs {
@@ -51,6 +53,9 @@ impl LogicalExprs {
             LogicalExprs::LiteralFloat(value, _) => LogicalExprs::LiteralFloat(*value, Some(alias)),
             LogicalExprs::BinaryExpr(expr, _) => {
                 LogicalExprs::BinaryExpr(expr.clone(), Some(alias))
+            }
+            LogicalExprs::AggregateExpr(expr, _) => {
+                LogicalExprs::AggregateExpr(expr.clone(), Some(alias))
             }
         }
     }
@@ -85,6 +90,11 @@ impl LogicalExpr for LogicalExprs {
                 f.set_alias(alias);
                 Ok(f)
             }
+            LogicalExprs::AggregateExpr(expr, alias) => {
+                let mut f = expr.to_field(input)?;
+                f.set_alias(alias);
+                Ok(f)
+            }
         }
     }
 
@@ -96,6 +106,9 @@ impl LogicalExpr for LogicalExprs {
             LogicalExprs::LiteralInteger(value, _) => Ok(PhysicalExprs::LiteralInteger(*value)),
             LogicalExprs::LiteralFloat(value, _) => Ok(PhysicalExprs::LiteralFloat(*value)),
             LogicalExprs::BinaryExpr(expr, _) => expr.to_physical_expr(input),
+            LogicalExprs::AggregateExpr(_, _) => {
+                panic!("AggregateExprs should not be converted to PhysicalExprs")
+            }
         }
     }
 }
@@ -115,6 +128,7 @@ impl Display for LogicalExprs {
             }
             LogicalExprs::LiteralFloat(value, alias) => LogicalExprs::fmt(value.to_string(), alias),
             LogicalExprs::BinaryExpr(expr, alias) => LogicalExprs::fmt(expr.to_string(), alias),
+            LogicalExprs::AggregateExpr(expr, alias) => LogicalExprs::fmt(expr.to_string(), alias),
         };
         write!(f, "{}", string)
     }
