@@ -1,4 +1,5 @@
 use enum_dispatch::enum_dispatch;
+use futures_async_stream::try_stream;
 use std::{collections::HashMap, sync::Arc};
 
 use crate::{
@@ -10,6 +11,7 @@ use crate::{
         types::Value,
     },
     physical_plans::accumulator::{Accumulator, Accumulators},
+    ZakuError,
 };
 
 use super::{
@@ -20,8 +22,6 @@ use super::{
 #[enum_dispatch]
 pub trait PhysicalPlan {
     fn schema(&self) -> Schema;
-
-    fn execute(&self) -> Box<dyn Iterator<Item = RecordBatch> + '_>;
 
     fn children(&self) -> Vec<PhysicalPlans>;
 }
@@ -34,6 +34,23 @@ pub enum PhysicalPlans {
     Filter(FilterExec),
     Limit(LimitExec),
     HashAggregate(HashAggregateExec),
+}
+
+impl PhysicalPlans {
+    #[try_stream(boxed, ok = RecordBatch, error = ZakuError)]
+    pub async fn execute(&self) {
+        let stream = match self {
+            PhysicalPlans::Scan(exec) => exec.execute(),
+            PhysicalPlans::Projection(exec) => exec.execute(),
+            PhysicalPlans::Filter(exec) => exec.execute(),
+            PhysicalPlans::Limit(exec) => exec.execute(),
+            PhysicalPlans::HashAggregate(exec) => exec.execute(),
+        };
+        #[for_await]
+        for res in stream {
+            yield res?
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -51,13 +68,18 @@ impl ScanExec {
     }
 }
 
+impl ScanExec {
+    #[try_stream(boxed, ok = RecordBatch, error = ZakuError)]
+    pub async fn execute(&self) {
+        for rb in self.datasource.get_data() {
+            yield rb.clone()
+        }
+    }
+}
+
 impl PhysicalPlan for ScanExec {
     fn schema(&self) -> Schema {
         self.datasource.schema().select(&self.projection)
-    }
-
-    fn execute(&self) -> Box<dyn Iterator<Item = RecordBatch> + '_> {
-        self.datasource.scan()
     }
 
     fn children(&self) -> Vec<PhysicalPlans> {
@@ -86,16 +108,21 @@ impl ProjectionExec {
     }
 }
 
+impl ProjectionExec {
+    #[try_stream(boxed, ok = RecordBatch, error = ZakuError)]
+    pub async fn execute(&self) {
+        #[for_await]
+        for rb in self.physical_plan.execute() {
+            let rb = rb?;
+            let columns = self.expr.iter().map(|e| e.evaluate(&rb)).collect();
+            yield RecordBatch::new(self.schema.clone(), columns)
+        }
+    }
+}
+
 impl PhysicalPlan for ProjectionExec {
     fn schema(&self) -> Schema {
         self.schema.clone()
-    }
-
-    fn execute(&self) -> Box<dyn Iterator<Item = RecordBatch> + '_> {
-        Box::new(self.physical_plan.execute().map(|rb| {
-            let columns = self.expr.iter().map(|e| e.evaluate(&rb)).collect();
-            RecordBatch::new(self.schema.clone(), columns)
-        }))
     }
 
     fn children(&self) -> Vec<PhysicalPlans> {
@@ -120,15 +147,13 @@ impl FilterExec {
     }
 }
 
-impl PhysicalPlan for FilterExec {
-    fn schema(&self) -> Schema {
-        self.schema.clone()
-    }
-
-    fn execute(&self) -> Box<dyn Iterator<Item = RecordBatch> + '_> {
-        let res = self.physical_plan.execute().map(|rb| {
+impl FilterExec {
+    #[try_stream(boxed, ok = RecordBatch, error = ZakuError)]
+    pub async fn execute(&self) {
+        #[for_await]
+        for res in self.physical_plan.execute() {
+            let rb = res?;
             let eval_col = self.expr.evaluate(&rb);
-
             let cols = rb
                 .iter()
                 .map(|c| {
@@ -142,11 +167,14 @@ impl PhysicalPlan for FilterExec {
                     )))
                 })
                 .collect();
+            yield RecordBatch::new(self.schema.clone(), cols)
+        }
+    }
+}
 
-            RecordBatch::new(self.schema.clone(), cols)
-        });
-
-        Box::new(res)
+impl PhysicalPlan for FilterExec {
+    fn schema(&self) -> Schema {
+        self.schema.clone()
     }
 
     fn children(&self) -> Vec<PhysicalPlans> {
@@ -171,14 +199,13 @@ impl LimitExec {
     }
 }
 
-impl PhysicalPlan for LimitExec {
-    fn schema(&self) -> Schema {
-        self.schema.clone()
-    }
-
-    fn execute(&self) -> Box<dyn Iterator<Item = RecordBatch> + '_> {
+impl LimitExec {
+    #[try_stream(boxed, ok = RecordBatch, error = ZakuError)]
+    pub async fn execute(&self) {
         let mut counter = self.limit;
-        let res = self.physical_plan.execute().map(move |rb| {
+        #[for_await]
+        for res in self.physical_plan.execute() {
+            let rb = res?;
             let take = if counter > rb.row_count() {
                 counter -= rb.row_count();
                 rb.row_count()
@@ -197,10 +224,14 @@ impl PhysicalPlan for LimitExec {
                 })
                 .collect();
 
-            RecordBatch::new(self.schema.clone(), cols)
-        });
+            yield RecordBatch::new(self.schema.clone(), cols)
+        }
+    }
+}
 
-        Box::new(res)
+impl PhysicalPlan for LimitExec {
+    fn schema(&self) -> Schema {
+        self.schema.clone()
     }
 
     fn children(&self) -> Vec<PhysicalPlans> {
@@ -232,14 +263,13 @@ impl HashAggregateExec {
     }
 }
 
-impl PhysicalPlan for HashAggregateExec {
-    fn schema(&self) -> Schema {
-        self.schema.clone()
-    }
-
-    fn execute(&self) -> Box<dyn Iterator<Item = RecordBatch> + '_> {
+impl HashAggregateExec {
+    #[try_stream(boxed, ok = RecordBatch, error = ZakuError)]
+    pub async fn execute(&self) {
         let mut aggregator_map: HashMap<Vec<Value>, Vec<Accumulators>> = HashMap::new();
-        self.input.execute().for_each(|rb| {
+        #[for_await]
+        for res in self.input.execute() {
+            let rb = res?;
             let group_keys: Vec<Arc<Vectors>> =
                 self.group_expr.iter().map(|e| e.evaluate(&rb)).collect();
             let aggr_input: Vec<Arc<Vectors>> = self
@@ -268,7 +298,7 @@ impl PhysicalPlan for HashAggregateExec {
                         a.accumulate(v.get_value(&i)).unwrap();
                     });
             });
-        });
+        }
 
         let mut columns: Vec<Vec<Value>> =
             self.schema().fields().iter().map(|_| Vec::new()).collect();
@@ -296,8 +326,13 @@ impl PhysicalPlan for HashAggregateExec {
                 )))
             })
             .collect();
-        let _ = [RecordBatch::new(self.schema.clone(), arc_cols)].iter();
-        todo!()
+        yield RecordBatch::new(self.schema.clone(), arc_cols)
+    }
+}
+
+impl PhysicalPlan for HashAggregateExec {
+    fn schema(&self) -> Schema {
+        self.schema.clone()
     }
 
     fn children(&self) -> Vec<PhysicalPlans> {

@@ -1,3 +1,7 @@
+#![feature(stmt_expr_attributes)]
+#![feature(proc_macro_hygiene)]
+#![feature(coroutines)]
+
 mod datasources;
 mod datatypes;
 mod error;

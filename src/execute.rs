@@ -1,5 +1,7 @@
 use std::{sync::Arc, vec};
 
+use futures_async_stream::for_await;
+
 use crate::{
     datasources::datasink::Datasink,
     datatypes::{
@@ -9,13 +11,17 @@ use crate::{
     },
     error::ZakuError,
     logical_plans::{dataframe::Dataframe, logical_plan::LogicalPlan},
-    physical_plans::physical_plan::PhysicalPlan,
     sql::{self, stmt::Stmt},
 };
 
-fn execute_select(df: Dataframe) -> Result<Datasink, ZakuError> {
-    let res = df.logical_plan().to_physical_plan()?.execute().collect();
-    Ok(Datasink::from_record_batches(res))
+async fn execute_select(df: Dataframe) -> Result<Datasink, ZakuError> {
+    let plan = df.logical_plan().to_physical_plan()?;
+    let mut data = vec![];
+    #[for_await]
+    for rb in plan.execute() {
+        data.push(rb?);
+    }
+    Ok(Datasink::from_record_batches(data))
 }
 
 fn execute_explain(df: Dataframe) -> Result<Datasink, ZakuError> {
@@ -30,18 +36,23 @@ fn execute_explain(df: Dataframe) -> Result<Datasink, ZakuError> {
     Ok(Datasink::new(schema, col))
 }
 
-fn execute_copy(df: Dataframe, path: &String) -> Result<Datasink, ZakuError> {
-    let res = df.logical_plan().to_physical_plan()?.execute().collect();
-    let ds = Datasink::from_record_batches(res);
+async fn execute_copy(df: Dataframe, path: &String) -> Result<Datasink, ZakuError> {
+    let plan = df.logical_plan().to_physical_plan()?;
+    let mut data = vec![];
+    #[for_await]
+    for rb in plan.execute() {
+        data.push(rb?);
+    }
+    let ds = Datasink::from_record_batches(data);
     let _ = ds.to_csv(path);
     Ok(ds)
 }
 
-pub fn execute(sql: &str, df: Dataframe) -> Result<Datasink, ZakuError> {
+pub async fn execute(sql: &str, df: Dataframe) -> Result<Datasink, ZakuError> {
     let select_df = sql::parser::parse(sql, df)?;
     match select_df {
-        Stmt::Select(df) => execute_select(df),
+        Stmt::Select(df) => execute_select(df).await,
         Stmt::Explain(df) => execute_explain(df),
-        Stmt::CopyTo(df, path) => execute_copy(df, &path),
+        Stmt::CopyTo(df, path) => execute_copy(df, &path).await,
     }
 }

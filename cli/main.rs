@@ -20,31 +20,30 @@ pub fn get_input() -> Result<Command, ZakuError> {
     Ok(Command::Execute(input))
 }
 
-fn execute_sql(sql: &str, df: Dataframe) -> Result<String, ZakuError> {
-    let res = execute(sql, df)?;
+async fn execute_sql(sql: &str, df: Dataframe) -> Result<String, ZakuError> {
+    let res = execute(sql, df).await?;
     Ok(res.pretty_print())
 }
 
-fn event_loop(df: Dataframe) {
-    let mut prev_cmd = Command::Execute("".to_string());
-    while prev_cmd != Command::Quit {
-        match get_input().map(|cmd| match cmd {
-            Command::Execute(sql) => match execute_sql(&sql, df.clone()) {
-                Ok(res) => res,
-                Err(e) => e.to_string(),
+async fn event_loop(df: Dataframe) {
+    loop {
+        let input = get_input();
+        match input {
+            Ok(Command::Execute(sql)) => match execute_sql(&sql, df.clone()).await {
+                Ok(res) => println!("{}\n", res),
+                Err(e) => println!("{}\n", e),
             },
-            Command::Quit => {
-                prev_cmd = Command::Quit;
-                "Exiting Zaku...".to_string()
+            Ok(Command::Quit) => {
+                println!("Exiting Zaku...");
+                std::process::exit(0);
             }
-        }) {
-            Ok(msg) => println!("{}\n", msg),
             Err(e) => println!("{}\n", e),
         }
     }
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let mut path = Path::new("resources").join("test.csv");
     {
         let mut parser = ArgumentParser::new();
@@ -59,7 +58,7 @@ fn main() {
         path.to_str()
             .expect("File test.csv should exist in resources directory"),
     ) {
-        Ok(df) => event_loop(df),
+        Ok(df) => event_loop(df).await,
         Err(e) => println!("Failed to load CSV file: {}", e),
     }
 }
