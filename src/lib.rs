@@ -9,6 +9,7 @@ mod execute;
 mod logical_plans;
 mod physical_plans;
 mod sql;
+pub mod test_utils;
 
 pub use datasources::datasink::Datasink;
 pub use error::ZakuError;

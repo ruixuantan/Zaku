@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use zaku::{execute, Dataframe, Datasink, ZakuError};
+use zaku::{execute, test_utils::DatasinkBuilder, Dataframe, Datasink, ZakuError};
 
 async fn run(sql: &str) -> Result<Datasink, ZakuError> {
     let binding = Path::new("resources").join("test.csv");
@@ -13,7 +13,88 @@ async fn run(sql: &str) -> Result<Datasink, ZakuError> {
 #[tokio::test]
 async fn basic_query() {
     let sql = "SELECT * FROM test";
-    assert!(run(sql).await.is_ok());
+    let expected = DatasinkBuilder::default()
+        .add_schema(
+            vec!["id", "product_name", "is_available", "price", "quantity"],
+            vec!["int", "text", "bool", "float", "int"],
+        )
+        .add_data(vec![
+            vec!["1", "toothbrush", "true", "5.00", "100"],
+            vec!["2", "toothpaste", "true", "10.00", "50"],
+            vec!["3", "shampoo", "true", "15.50", "25"],
+            vec!["4", "soap", "false", "2.00", "0"],
+            vec!["5", "shaving cream", "true", "20.00", "10"],
+        ])
+        .build();
+    assert_eq!(run(sql).await.unwrap(), expected);
+}
+
+#[tokio::test]
+async fn projection_query() {
+    let sql = "SELECT id, product_name FROM test";
+    let expected = DatasinkBuilder::default()
+        .add_schema(vec!["id", "product_name"], vec!["int", "text"])
+        .add_data(vec![
+            vec!["1", "toothbrush"],
+            vec!["2", "toothpaste"],
+            vec!["3", "shampoo"],
+            vec!["4", "soap"],
+            vec!["5", "shaving cream"],
+        ])
+        .build();
+    assert_eq!(run(sql).await.unwrap(), expected);
+}
+
+#[tokio::test]
+async fn filter_query() {
+    let sql = "SELECT * FROM test WHERE price >= 10";
+    let expected = DatasinkBuilder::default()
+        .add_schema(
+            vec!["id", "product_name", "is_available", "price", "quantity"],
+            vec!["int", "text", "bool", "float", "int"],
+        )
+        .add_data(vec![
+            vec!["2", "toothpaste", "true", "10.00", "50"],
+            vec!["3", "shampoo", "true", "15.50", "25"],
+            vec!["5", "shaving cream", "true", "20.00", "10"],
+        ])
+        .build();
+    assert_eq!(run(sql).await.unwrap(), expected);
+}
+
+#[tokio::test]
+async fn limit_query() {
+    let sql = "SELECT * FROM test LIMIT 2";
+    let expected = DatasinkBuilder::default()
+        .add_schema(
+            vec!["id", "product_name", "is_available", "price", "quantity"],
+            vec!["int", "text", "bool", "float", "int"],
+        )
+        .add_data(vec![
+            vec!["1", "toothbrush", "true", "5.00", "100"],
+            vec!["2", "toothpaste", "true", "10.00", "50"],
+        ])
+        .build();
+    assert_eq!(run(sql).await.unwrap(), expected);
+}
+
+#[tokio::test]
+async fn complex_query() {
+    let sql =
+        "SELECT id, product_name, (price*quantity) AS total FROM test WHERE quantity <> 0 LIMIT 3";
+    let expected = DatasinkBuilder::default()
+        .add_schema(
+            vec!["id", "product_name", "total"],
+            vec!["int", "text", "float"],
+        )
+        .add_aliases(vec![None, None, Some("total")])
+        .add_data(vec![
+            vec!["1", "toothbrush", "500.00"],
+            vec!["2", "toothpaste", "500.00"],
+            vec!["3", "shampoo", "387.50"],
+        ])
+        .build();
+    assert_eq!(run(sql).await.unwrap(), expected);
 }
 
 #[tokio::test]

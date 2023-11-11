@@ -12,6 +12,7 @@ use crate::{
 
 use super::prettifier::prettify;
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct Datasink {
     schema: Schema,
     data: Vec<Arc<Vectors>>,

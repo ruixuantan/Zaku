@@ -1,7 +1,7 @@
 use super::types::DataType;
 use crate::error::ZakuError;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct Field {
     name: String,
     alias: Option<String>,
@@ -43,6 +43,21 @@ impl Field {
 
     pub fn set_datatype(&mut self, datatype: DataType) {
         self.datatype = datatype;
+    }
+}
+
+impl PartialEq for Field {
+    fn eq(&self, other: &Self) -> bool {
+        let mut eq_col_names = false;
+        if let Some(alias) = &self.alias {
+            if let Some(other_alias) = &other.alias {
+                eq_col_names = alias == other_alias;
+            }
+        } else {
+            eq_col_names = self.name == other.name;
+        }
+
+        eq_col_names && self.datatype == other.datatype
     }
 }
 
