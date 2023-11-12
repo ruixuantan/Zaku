@@ -10,7 +10,7 @@ use super::datasink::Datasink;
 const DIVIDER: &str = "|";
 
 fn compute_cell_space(schema: &Schema, data: &Datasink) -> Vec<usize> {
-    let size = schema.fields().iter().map(|f| f.alias().len());
+    let size = schema.fields().iter().map(|f| f.name().len());
 
     data.iter()
         .zip(size)
@@ -68,7 +68,7 @@ pub fn prettify(data: &Datasink) -> String {
         .fields()
         .iter()
         .enumerate()
-        .map(|(i, field)| pad_value(field.alias().clone(), cell_space[i]))
+        .map(|(i, field)| pad_value(field.name().clone(), cell_space[i]))
         .collect::<Vec<String>>()
         .join(DIVIDER);
     results.push(header);

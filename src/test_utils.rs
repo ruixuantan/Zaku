@@ -46,22 +46,6 @@ impl DatasinkBuilder {
         self
     }
 
-    pub fn add_aliases(mut self, aliases: Vec<Option<&str>>) -> DatasinkBuilder {
-        let mut fields = self
-            .schema
-            .as_ref()
-            .expect("Schema not set")
-            .fields()
-            .clone();
-        aliases.iter().enumerate().for_each(|(i, alias)| {
-            if let Some(alias) = alias {
-                fields[i].set_alias(&Some(alias.to_string()));
-            }
-        });
-        self.schema = Some(Schema::new(fields));
-        self
-    }
-
     // data is row-based
     pub fn add_data(mut self, data: Vec<Vec<&str>>) -> DatasinkBuilder {
         let mut cols = vec![];

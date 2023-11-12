@@ -87,7 +87,6 @@ async fn complex_query() {
             vec!["id", "product_name", "total"],
             vec!["int", "text", "float"],
         )
-        .add_aliases(vec![None, None, Some("total")])
         .add_data(vec![
             vec!["1", "toothbrush", "500.00"],
             vec!["2", "toothpaste", "500.00"],

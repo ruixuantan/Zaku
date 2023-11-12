@@ -1,36 +1,15 @@
 use super::types::DataType;
 use crate::error::ZakuError;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Field {
     name: String,
-    alias: Option<String>,
     datatype: DataType,
 }
 
 impl Field {
     pub fn new(name: String, datatype: DataType) -> Field {
-        Field {
-            name,
-            alias: None,
-            datatype,
-        }
-    }
-
-    pub fn with_alias(name: String, alias: Option<String>, datatype: DataType) -> Field {
-        Field {
-            name,
-            alias,
-            datatype,
-        }
-    }
-
-    pub fn set_alias(&mut self, alias: &Option<String>) {
-        self.alias = alias.clone();
-    }
-
-    pub fn alias(&self) -> String {
-        self.alias.clone().unwrap_or(self.name.clone())
+        Field { name, datatype }
     }
 
     pub fn name(&self) -> &String {
@@ -43,21 +22,6 @@ impl Field {
 
     pub fn set_datatype(&mut self, datatype: DataType) {
         self.datatype = datatype;
-    }
-}
-
-impl PartialEq for Field {
-    fn eq(&self, other: &Self) -> bool {
-        let mut eq_col_names = false;
-        if let Some(alias) = &self.alias {
-            if let Some(other_alias) = &other.alias {
-                eq_col_names = alias == other_alias;
-            }
-        } else {
-            eq_col_names = self.name == other.name;
-        }
-
-        eq_col_names && self.datatype == other.datatype
     }
 }
 
@@ -115,10 +79,7 @@ impl Schema {
     }
 
     pub fn as_header(&self) -> Vec<String> {
-        self.fields
-            .iter()
-            .map(|f| f.alias())
-            .collect::<Vec<String>>()
+        self.fields.iter().map(|f| f.name().clone()).collect()
     }
 }
 

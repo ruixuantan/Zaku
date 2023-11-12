@@ -16,7 +16,7 @@ use crate::{
         aggregate_expr::AggregateExprs,
         binary_expr::BinaryExprs,
         dataframe::Dataframe,
-        logical_expr::{Column, LogicalExprs},
+        logical_expr::{AliasExpr, Column, LogicalExprs},
     },
 };
 
@@ -54,9 +54,8 @@ fn parse_projection(
         })
         .map(|item| match item {
             SelectItem::UnnamedExpr(expr) => parse_expr(expr),
-            SelectItem::ExprWithAlias { expr, alias } => {
-                parse_expr(expr).map(|e| e.set_alias(alias.value.clone()))
-            }
+            SelectItem::ExprWithAlias { expr, alias } => parse_expr(expr)
+                .map(|e| LogicalExprs::AliasExpr(AliasExpr::new(e, alias.value.clone()))),
             _ => panic!("Non unnamed expressions should have been filtered"),
         })
         .collect::<Result<Vec<LogicalExprs>, ZakuError>>()?;
@@ -98,10 +97,10 @@ fn parse_aggregate_function(func: &Function) -> Result<LogicalExprs, ZakuError> 
             }
         })
         .collect::<Result<Vec<LogicalExprs>, ZakuError>>()?;
-    Ok(LogicalExprs::AggregateExpr(
-        AggregateExprs::from_str(&idents[0].value, args[0].clone())?,
-        None,
-    ))
+    Ok(LogicalExprs::AggregateExpr(AggregateExprs::from_str(
+        &idents[0].value,
+        args[0].clone(),
+    )?))
 }
 
 fn parse_expr(expr: &Expr) -> Result<LogicalExprs, ZakuError> {
@@ -109,17 +108,16 @@ fn parse_expr(expr: &Expr) -> Result<LogicalExprs, ZakuError> {
         Expr::BinaryOp { left, op, right } => {
             let l = parse_expr(left)?;
             let r = parse_expr(right)?;
-            Ok(LogicalExprs::BinaryExpr(BinaryExprs::new(l, op, r)?, None))
+            Ok(LogicalExprs::BinaryExpr(BinaryExprs::new(l, op, r)?))
         }
-        Expr::Identifier(ident) => Ok(LogicalExprs::Column(Column::new(ident.value.clone()), None)),
+        Expr::Identifier(ident) => Ok(LogicalExprs::Column(Column::new(ident.value.clone()))),
         Expr::Value(value) => match value {
-            sqlparser::ast::Value::Boolean(b) => Ok(LogicalExprs::LiteralBoolean(*b, None)),
+            sqlparser::ast::Value::Boolean(b) => Ok(LogicalExprs::LiteralBoolean(*b)),
             sqlparser::ast::Value::Number(n, _) => Ok(LogicalExprs::LiteralFloat(
                 n.parse::<f32>().expect("Value should be a float"),
-                None,
             )),
             sqlparser::ast::Value::SingleQuotedString(s) => {
-                Ok(LogicalExprs::LiteralText(s.clone(), None))
+                Ok(LogicalExprs::LiteralText(s.clone()))
             }
             _ => Err(ZakuError::new("Unsupported value")),
         },
