@@ -59,6 +59,17 @@ impl LogicalExprs {
             }
         }
     }
+
+    pub fn is_aggregate(&self) -> bool {
+        matches!(self, LogicalExprs::AggregateExpr(_, _))
+    }
+
+    pub fn as_aggregate(&self) -> AggregateExprs {
+        match self {
+            LogicalExprs::AggregateExpr(expr, _) => expr.clone(),
+            _ => panic!("Only AggregateExprs can be converted"),
+        }
+    }
 }
 
 impl LogicalExpr for LogicalExprs {

@@ -17,6 +17,17 @@ pub enum AggregateExprs {
 }
 
 impl AggregateExprs {
+    pub fn from_str(func: &str, func_arg: LogicalExprs) -> Result<AggregateExprs, ZakuError> {
+        match func.to_uppercase().as_str() {
+            "COUNT" => Ok(AggregateExprs::Count(Box::new(func_arg))),
+            "SUM" => Ok(AggregateExprs::Sum(Box::new(func_arg))),
+            "AVG" => Ok(AggregateExprs::Avg(Box::new(func_arg))),
+            "MIN" => Ok(AggregateExprs::Min(Box::new(func_arg))),
+            "MAX" => Ok(AggregateExprs::Max(Box::new(func_arg))),
+            _ => Err(ZakuError::new("Unknown aggregate function")),
+        }
+    }
+
     pub fn to_field(&self, plan: &LogicalPlans) -> Result<Field, ZakuError> {
         match self {
             AggregateExprs::Count(_) => Ok(Field::new("count".to_string(), DataType::Integer)),

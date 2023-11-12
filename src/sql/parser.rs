@@ -3,13 +3,17 @@ use std::ops::Deref;
 use sqlparser::{
     ast::Expr,
     ast::Select,
-    ast::{CopySource, CopyTarget, Statement},
+    ast::{
+        CopySource, CopyTarget, Function, FunctionArg, FunctionArgExpr, GroupByExpr, ObjectName,
+        Statement,
+    },
     ast::{Query, SelectItem},
 };
 
 use crate::{
     error::ZakuError,
     logical_plans::{
+        aggregate_expr::AggregateExprs,
         binary_expr::BinaryExprs,
         dataframe::Dataframe,
         logical_expr::{Column, LogicalExprs},
@@ -36,7 +40,9 @@ fn parse_select(query: &Query) -> Result<SelectStmt, ZakuError> {
     Ok(SelectStmt::new(body?, limit?))
 }
 
-fn parse_projection(select: &Select) -> Result<Vec<LogicalExprs>, ZakuError> {
+fn parse_projection(
+    select: &Select,
+) -> Result<(Vec<LogicalExprs>, Vec<AggregateExprs>), ZakuError> {
     let logical_expr = select
         .projection
         .iter()
@@ -54,7 +60,48 @@ fn parse_projection(select: &Select) -> Result<Vec<LogicalExprs>, ZakuError> {
             _ => panic!("Non unnamed expressions should have been filtered"),
         })
         .collect::<Result<Vec<LogicalExprs>, ZakuError>>()?;
-    Ok(logical_expr)
+
+    let projections = logical_expr
+        .iter()
+        .filter(|expr| !expr.is_aggregate())
+        .cloned()
+        .collect();
+    let aggregations = logical_expr
+        .iter()
+        .filter(|expr| expr.is_aggregate())
+        .map(|expr| expr.as_aggregate())
+        .collect();
+
+    Ok((projections, aggregations))
+}
+
+fn parse_group_by(expr: &GroupByExpr) -> Result<Vec<LogicalExprs>, ZakuError> {
+    match expr {
+        GroupByExpr::Expressions(exprs) => exprs.iter().map(parse_expr).collect(),
+        _ => Err(ZakuError::new("Unsupported group by expression")),
+    }
+}
+
+fn parse_aggregate_function(func: &Function) -> Result<LogicalExprs, ZakuError> {
+    let ObjectName(idents) = &func.name;
+
+    let args = func
+        .args
+        .iter()
+        .map(|f| match f {
+            FunctionArg::Unnamed(expr) => match expr {
+                FunctionArgExpr::Expr(e) => parse_expr(e),
+                _ => Err(ZakuError::new("Only column names are supported")),
+            },
+            FunctionArg::Named { name: _, arg: _ } => {
+                Err(ZakuError::new("Named function arguments are not supported"))
+            }
+        })
+        .collect::<Result<Vec<LogicalExprs>, ZakuError>>()?;
+    Ok(LogicalExprs::AggregateExpr(
+        AggregateExprs::from_str(&idents[0].value, args[0].clone())?,
+        None,
+    ))
 }
 
 fn parse_expr(expr: &Expr) -> Result<LogicalExprs, ZakuError> {
@@ -77,6 +124,7 @@ fn parse_expr(expr: &Expr) -> Result<LogicalExprs, ZakuError> {
             _ => Err(ZakuError::new("Unsupported value")),
         },
         Expr::Nested(expr) => parse_expr(expr),
+        Expr::Function(func) => parse_aggregate_function(func),
         _ => Err(ZakuError::new("Unsupported expression")),
     }
 }
@@ -88,7 +136,13 @@ fn create_df(select: &SelectStmt, dataframe: Dataframe) -> Result<Dataframe, Zak
         df = df.filter(selection?)?;
     }
 
-    let projections = parse_projection(&select.body)?;
+    let (projections, aggregates) = parse_projection(&select.body)?;
+
+    let group_by_exprs = parse_group_by(&select.body.group_by)?;
+    if !group_by_exprs.is_empty() || !aggregates.is_empty() {
+        df = df.aggregate(group_by_exprs, aggregates)?;
+    }
+
     if !projections.is_empty() {
         df = df.projection(projections)?;
     }

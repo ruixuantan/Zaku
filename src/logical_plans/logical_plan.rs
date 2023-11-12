@@ -274,6 +274,30 @@ impl Aggregate {
             aggregate_expr,
         })
     }
+
+    fn group_expr_str(&self) -> String {
+        if self.group_expr.is_empty() {
+            "None".to_string()
+        } else {
+            self.group_expr
+                .iter()
+                .map(|e| e.to_string())
+                .collect::<Vec<String>>()
+                .join(", ")
+        }
+    }
+
+    fn aggr_expr_str(&self) -> String {
+        if self.aggregate_expr.is_empty() {
+            "None".to_string()
+        } else {
+            self.aggregate_expr
+                .iter()
+                .map(|e| e.to_string())
+                .collect::<Vec<String>>()
+                .join(", ")
+        }
+    }
 }
 
 impl LogicalPlan for Aggregate {
@@ -288,16 +312,8 @@ impl LogicalPlan for Aggregate {
     fn to_string(&self) -> String {
         format!(
             "Aggregate: group by={}, aggregate={}",
-            self.group_expr
-                .iter()
-                .map(|e| e.to_string())
-                .collect::<Vec<String>>()
-                .join(", "),
-            self.aggregate_expr
-                .iter()
-                .map(|e| e.to_string())
-                .collect::<Vec<String>>()
-                .join(", ")
+            self.group_expr_str(),
+            self.aggr_expr_str()
         )
     }
 
