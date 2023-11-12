@@ -19,7 +19,19 @@ fn compute_cell_space(schema: &Schema, data: &Datasink) -> Vec<usize> {
                 .iter()
                 .fold(curr_size, |acc, e| std::cmp::max(acc, e.to_string().len())),
             Vectors::LiteralVector(vector) => {
-                std::cmp::max(curr_size, vector.value().to_string().len())
+                let max_vector_string =
+                    vector
+                        .value()
+                        .to_string()
+                        .split('\n')
+                        .fold(String::new(), |acc, value| {
+                            if acc.len() > value.len() {
+                                acc
+                            } else {
+                                value.to_string()
+                            }
+                        });
+                std::cmp::max(curr_size, max_vector_string.len())
             }
         })
         .collect()

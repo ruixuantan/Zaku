@@ -90,19 +90,15 @@ impl PhysicalPlan for ScanExec {
 #[derive(Clone)]
 pub struct ProjectionExec {
     schema: Schema,
-    physical_plan: Box<PhysicalPlans>,
+    input: Box<PhysicalPlans>,
     expr: Vec<PhysicalExprs>,
 }
 
 impl ProjectionExec {
-    pub fn new(
-        schema: Schema,
-        physical_plan: PhysicalPlans,
-        expr: Vec<PhysicalExprs>,
-    ) -> ProjectionExec {
+    pub fn new(schema: Schema, input: PhysicalPlans, expr: Vec<PhysicalExprs>) -> ProjectionExec {
         ProjectionExec {
             schema,
-            physical_plan: Box::new(physical_plan),
+            input: Box::new(input),
             expr,
         }
     }
@@ -112,7 +108,7 @@ impl ProjectionExec {
     #[try_stream(boxed, ok = RecordBatch, error = ZakuError)]
     pub async fn execute(&self) {
         #[for_await]
-        for rb in self.physical_plan.execute() {
+        for rb in self.input.execute() {
             let rb = rb?;
             let columns = self.expr.iter().map(|e| e.evaluate(&rb)).collect();
             yield RecordBatch::new(self.schema.clone(), columns)
@@ -126,22 +122,22 @@ impl PhysicalPlan for ProjectionExec {
     }
 
     fn children(&self) -> Vec<PhysicalPlans> {
-        vec![*self.physical_plan.clone()]
+        vec![*self.input.clone()]
     }
 }
 
 #[derive(Clone)]
 pub struct FilterExec {
     schema: Schema,
-    physical_plan: Box<PhysicalPlans>,
+    input: Box<PhysicalPlans>,
     expr: PhysicalExprs,
 }
 
 impl FilterExec {
-    pub fn new(schema: Schema, physical_plan: PhysicalPlans, expr: PhysicalExprs) -> FilterExec {
+    pub fn new(schema: Schema, input: PhysicalPlans, expr: PhysicalExprs) -> FilterExec {
         FilterExec {
             schema,
-            physical_plan: Box::new(physical_plan),
+            input: Box::new(input),
             expr,
         }
     }
@@ -151,7 +147,7 @@ impl FilterExec {
     #[try_stream(boxed, ok = RecordBatch, error = ZakuError)]
     pub async fn execute(&self) {
         #[for_await]
-        for res in self.physical_plan.execute() {
+        for res in self.input.execute() {
             let rb = res?;
             let eval_col = self.expr.evaluate(&rb);
             let cols = rb
@@ -178,22 +174,22 @@ impl PhysicalPlan for FilterExec {
     }
 
     fn children(&self) -> Vec<PhysicalPlans> {
-        vec![*self.physical_plan.clone()]
+        vec![*self.input.clone()]
     }
 }
 
 #[derive(Clone)]
 pub struct LimitExec {
     schema: Schema,
-    physical_plan: Box<PhysicalPlans>,
+    input: Box<PhysicalPlans>,
     limit: usize,
 }
 
 impl LimitExec {
-    pub fn new(schema: Schema, physical_plan: PhysicalPlans, limit: usize) -> LimitExec {
+    pub fn new(schema: Schema, input: PhysicalPlans, limit: usize) -> LimitExec {
         LimitExec {
             schema,
-            physical_plan: Box::new(physical_plan),
+            input: Box::new(input),
             limit,
         }
     }
@@ -204,7 +200,7 @@ impl LimitExec {
     pub async fn execute(&self) {
         let mut counter = self.limit;
         #[for_await]
-        for res in self.physical_plan.execute() {
+        for res in self.input.execute() {
             let rb = res?;
             let take = if counter > rb.row_count() {
                 counter -= rb.row_count();
@@ -235,7 +231,7 @@ impl PhysicalPlan for LimitExec {
     }
 
     fn children(&self) -> Vec<PhysicalPlans> {
-        vec![*self.physical_plan.clone()]
+        vec![*self.input.clone()]
     }
 }
 
