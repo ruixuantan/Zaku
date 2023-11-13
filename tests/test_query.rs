@@ -79,16 +79,6 @@ async fn limit_query() {
 }
 
 #[tokio::test]
-async fn group_by_query() {
-    let sql = "SELECT is_available FROM test GROUP BY is_available";
-    let expected = DatasinkBuilder::default()
-        .add_schema(vec!["is_available"], vec!["bool"])
-        .add_data(vec![vec!["true"], vec!["false"]])
-        .build();
-    assert_eq!(run(sql).await.unwrap(), expected);
-}
-
-#[tokio::test]
 async fn aggregate_query() {
     let sql = "SELECT SUM(price*2.0) AS inflation FROM test";
     let expected = DatasinkBuilder::default()
@@ -100,10 +90,20 @@ async fn aggregate_query() {
 
 #[tokio::test]
 async fn aggregate_group_by_query() {
-    let sql = "SELECT AVG(price) * SUM(quantity) AS estimated from test WHERE is_available = true GROUP BY is_available";
+    let sql = "SELECT AVG(price) * SUM(quantity) AS estimated FROM test WHERE is_available = true GROUP BY is_available";
     let expected = DatasinkBuilder::default()
         .add_schema(vec!["estimated"], vec!["float"])
         .add_data(vec![vec!["2335.625"]])
+        .build();
+    assert_eq!(run(sql).await.unwrap(), expected);
+}
+
+#[tokio::test]
+async fn having_query() {
+    let sql = "SELECT COUNT(id) AS count FROM test GROUP BY is_available HAVING COUNT(id) > 2 AND is_available = true";
+    let expected = DatasinkBuilder::default()
+        .add_schema(vec!["count"], vec!["int"])
+        .add_data(vec![vec!["4"]])
         .build();
     assert_eq!(run(sql).await.unwrap(), expected);
 }

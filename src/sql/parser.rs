@@ -178,6 +178,12 @@ fn create_df(select: &SelectStmt, dataframe: Dataframe) -> Result<Dataframe, Zak
 
     let aggr_projections = get_aggregate_projections(group_by_exprs.len(), projections);
     df = df.aggregate(group_by_exprs, aggregates)?;
+
+    let having = select.body.having.as_ref().map(parse_expr);
+    if let Some(have) = having {
+        df = df.filter(have?)?;
+    }
+
     df = df.projection(aggr_projections)?;
 
     if let Some(limit) = select.limit {
