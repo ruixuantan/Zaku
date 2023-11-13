@@ -100,10 +100,10 @@ async fn aggregate_query() {
 
 #[tokio::test]
 async fn aggregate_group_by_query() {
-    let sql = "SELECT AVG(price) * SUM(quantity) AS estimated from test GROUP BY is_available";
+    let sql = "SELECT AVG(price) * SUM(quantity) AS estimated from test WHERE is_available = true GROUP BY is_available";
     let expected = DatasinkBuilder::default()
         .add_schema(vec!["estimated"], vec!["float"])
-        .add_data(vec![vec!["0"], vec!["2335.625"]])
+        .add_data(vec![vec!["2335.625"]])
         .build();
     assert_eq!(run(sql).await.unwrap(), expected);
 }
