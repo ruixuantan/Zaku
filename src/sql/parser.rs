@@ -40,10 +40,8 @@ fn parse_select(query: &Query) -> Result<SelectStmt, ZakuError> {
     Ok(SelectStmt::new(body?, limit?))
 }
 
-fn parse_projection(
-    select: &Select,
-) -> Result<(Vec<LogicalExprs>, Vec<AggregateExprs>), ZakuError> {
-    let logical_expr = select
+fn parse_projection(select: &Select) -> Result<Vec<LogicalExprs>, ZakuError> {
+    let projections = select
         .projection
         .iter()
         .filter(|item| {
@@ -60,18 +58,7 @@ fn parse_projection(
         })
         .collect::<Result<Vec<LogicalExprs>, ZakuError>>()?;
 
-    let projections = logical_expr
-        .iter()
-        .filter(|expr| !expr.is_aggregate())
-        .cloned()
-        .collect();
-    let aggregations = logical_expr
-        .iter()
-        .filter(|expr| expr.is_aggregate())
-        .map(|expr| expr.as_aggregate())
-        .collect();
-
-    Ok((projections, aggregations))
+    Ok(projections)
 }
 
 fn parse_group_by(expr: &GroupByExpr) -> Result<Vec<LogicalExprs>, ZakuError> {
@@ -127,6 +114,41 @@ fn parse_expr(expr: &Expr) -> Result<LogicalExprs, ZakuError> {
     }
 }
 
+fn retrieve_aggregate_col_idx(aggr_expr_idx: &mut usize, expr: &LogicalExprs) -> LogicalExprs {
+    match expr {
+        LogicalExprs::AggregateExpr(_) => {
+            let col_idx_expr = LogicalExprs::ColumnIndex(*aggr_expr_idx);
+            *aggr_expr_idx += 1;
+            col_idx_expr
+        }
+        LogicalExprs::AliasExpr(alias) => {
+            let aggr = retrieve_aggregate_col_idx(aggr_expr_idx, alias.expr());
+            LogicalExprs::AliasExpr(AliasExpr::new(aggr, alias.alias().clone()))
+        }
+        LogicalExprs::BinaryExpr(binary_expr) => {
+            let l = retrieve_aggregate_col_idx(aggr_expr_idx, binary_expr.get_l());
+            let r = retrieve_aggregate_col_idx(aggr_expr_idx, binary_expr.get_r());
+            LogicalExprs::BinaryExpr(BinaryExprs::new(l, &binary_expr.get_op(), r).unwrap())
+        }
+
+        _ => expr.clone(),
+    }
+}
+
+// Convert aggregate functions to column indexes for the projections
+// After a group by aggregation, the schema starts first with the group by columns
+// As such, we need to offset the aggregate column indexes by the number of group by columns
+fn get_aggregate_projections(
+    group_by_size: usize,
+    projections: Vec<LogicalExprs>,
+) -> Vec<LogicalExprs> {
+    let mut aggr_expr_idx = group_by_size;
+    projections
+        .iter()
+        .map(|expr| retrieve_aggregate_col_idx(&mut aggr_expr_idx, expr))
+        .collect()
+}
+
 fn create_df(select: &SelectStmt, dataframe: Dataframe) -> Result<Dataframe, ZakuError> {
     let mut df = dataframe;
     let selection = select.body.selection.as_ref().map(parse_expr);
@@ -134,16 +156,29 @@ fn create_df(select: &SelectStmt, dataframe: Dataframe) -> Result<Dataframe, Zak
         df = df.filter(selection?)?;
     }
 
-    let (projections, aggregates) = parse_projection(&select.body)?;
+    let projections = parse_projection(&select.body)?;
+    let aggregates: Vec<AggregateExprs> = projections
+        .iter()
+        .flat_map(|expr| expr.as_aggregate())
+        .collect();
 
     let group_by_exprs = parse_group_by(&select.body.group_by)?;
-    if !group_by_exprs.is_empty() || !aggregates.is_empty() {
-        df = df.aggregate(group_by_exprs, aggregates)?;
+
+    // no group by clause and no aggregate functions in SELECT
+    if group_by_exprs.is_empty() && aggregates.is_empty() {
+        if !projections.is_empty() {
+            df = df.projection(projections)?;
+        }
+
+        if let Some(limit) = select.limit {
+            df = df.limit(limit)?;
+        }
+        return Ok(df);
     }
 
-    if !projections.is_empty() {
-        df = df.projection(projections)?;
-    }
+    let aggr_projections = get_aggregate_projections(group_by_exprs.len(), projections);
+    df = df.aggregate(group_by_exprs, aggregates)?;
+    df = df.projection(aggr_projections)?;
 
     if let Some(limit) = select.limit {
         df = df.limit(limit)?;
@@ -195,7 +230,7 @@ pub fn parse(sql: &str, df: Dataframe) -> Result<Stmt, ZakuError> {
                 let df = create_df(&select_stmt, df)?;
                 Ok(Stmt::Explain(df))
             }
-            _ => Err(ZakuError::new("Only SELECT queris are supported")),
+            _ => Err(ZakuError::new("Only SELECT queries are supported")),
         },
         Statement::Copy {
             source,

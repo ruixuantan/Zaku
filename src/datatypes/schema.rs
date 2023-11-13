@@ -39,14 +39,27 @@ impl Schema {
         self.fields
             .iter()
             .find(|f| &f.name == field)
-            .ok_or(ZakuError::new("Field not found"))
+            .ok_or(ZakuError::new(
+                format!("Field '{}' not found", field).as_str(),
+            ))
+    }
+
+    pub fn get_field_by_index(&self, index: &usize) -> Result<&Field, ZakuError> {
+        if index >= &self.fields.len() {
+            return Err(ZakuError::new(
+                format!("Index {} out of bounds", index).as_str(),
+            ));
+        }
+        Ok(&self.fields[*index])
     }
 
     pub fn get_index(&self, field: &String) -> Result<usize, ZakuError> {
         self.fields
             .iter()
             .position(|f| &f.name == field)
-            .ok_or(ZakuError::new("Field not found"))
+            .ok_or(ZakuError::new(
+                format!("Field '{}' not found", field).as_str(),
+            ))
     }
 
     pub fn fields(&self) -> &Vec<Field> {
@@ -58,7 +71,9 @@ impl Schema {
             .iter()
             .find(|f| &f.name == field)
             .map(|f| &f.datatype)
-            .ok_or(ZakuError::new("Field not found"))
+            .ok_or(ZakuError::new(
+                format!("Field '{}' not found", field).as_str(),
+            ))
     }
 
     pub fn get_datatype_from_index(&self, index: &usize) -> Result<&DataType, ZakuError> {

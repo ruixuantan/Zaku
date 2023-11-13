@@ -30,11 +30,24 @@ impl AggregateExprs {
 
     pub fn to_field(&self, plan: &LogicalPlans) -> Result<Field, ZakuError> {
         match self {
-            AggregateExprs::Count(_) => Ok(Field::new("count".to_string(), DataType::Integer)),
+            AggregateExprs::Count(expr) => Ok(Field::new(
+                expr.to_field(plan)?.name().clone(),
+                DataType::Integer,
+            )),
             AggregateExprs::Sum(expr) => expr.to_field(plan),
             AggregateExprs::Avg(expr) => expr.to_field(plan),
             AggregateExprs::Min(expr) => expr.to_field(plan),
             AggregateExprs::Max(expr) => expr.to_field(plan),
+        }
+    }
+
+    pub fn input(&self) -> &LogicalExprs {
+        match self {
+            AggregateExprs::Count(expr) => expr,
+            AggregateExprs::Sum(expr) => expr,
+            AggregateExprs::Avg(expr) => expr,
+            AggregateExprs::Min(expr) => expr,
+            AggregateExprs::Max(expr) => expr,
         }
     }
 

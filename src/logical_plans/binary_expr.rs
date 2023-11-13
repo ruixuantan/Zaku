@@ -52,6 +52,60 @@ impl BinaryExprs {
             _ => Err(ZakuError::new("Invalid operator")),
         }
     }
+
+    pub fn get_l(&self) -> &LogicalExprs {
+        match self {
+            BinaryExprs::And(expr) => expr.l.as_ref(),
+            BinaryExprs::Or(expr) => expr.l.as_ref(),
+            BinaryExprs::Eq(expr) => expr.l.as_ref(),
+            BinaryExprs::Neq(expr) => expr.l.as_ref(),
+            BinaryExprs::Gt(expr) => expr.l.as_ref(),
+            BinaryExprs::Gte(expr) => expr.l.as_ref(),
+            BinaryExprs::Lt(expr) => expr.l.as_ref(),
+            BinaryExprs::Lte(expr) => expr.l.as_ref(),
+            BinaryExprs::Add(expr) => expr.l.as_ref(),
+            BinaryExprs::Sub(expr) => expr.l.as_ref(),
+            BinaryExprs::Mul(expr) => expr.l.as_ref(),
+            BinaryExprs::Div(expr) => expr.l.as_ref(),
+            BinaryExprs::Mod(expr) => expr.l.as_ref(),
+        }
+    }
+
+    pub fn get_r(&self) -> &LogicalExprs {
+        match self {
+            BinaryExprs::And(expr) => expr.r.as_ref(),
+            BinaryExprs::Or(expr) => expr.r.as_ref(),
+            BinaryExprs::Eq(expr) => expr.r.as_ref(),
+            BinaryExprs::Neq(expr) => expr.r.as_ref(),
+            BinaryExprs::Gt(expr) => expr.r.as_ref(),
+            BinaryExprs::Gte(expr) => expr.r.as_ref(),
+            BinaryExprs::Lt(expr) => expr.r.as_ref(),
+            BinaryExprs::Lte(expr) => expr.r.as_ref(),
+            BinaryExprs::Add(expr) => expr.r.as_ref(),
+            BinaryExprs::Sub(expr) => expr.r.as_ref(),
+            BinaryExprs::Mul(expr) => expr.r.as_ref(),
+            BinaryExprs::Div(expr) => expr.r.as_ref(),
+            BinaryExprs::Mod(expr) => expr.r.as_ref(),
+        }
+    }
+
+    pub fn get_op(&self) -> BinaryOperator {
+        match self {
+            BinaryExprs::And(_) => BinaryOperator::And,
+            BinaryExprs::Or(_) => BinaryOperator::Or,
+            BinaryExprs::Eq(_) => BinaryOperator::Eq,
+            BinaryExprs::Neq(_) => BinaryOperator::NotEq,
+            BinaryExprs::Gt(_) => BinaryOperator::Gt,
+            BinaryExprs::Gte(_) => BinaryOperator::GtEq,
+            BinaryExprs::Lt(_) => BinaryOperator::Lt,
+            BinaryExprs::Lte(_) => BinaryOperator::LtEq,
+            BinaryExprs::Add(_) => BinaryOperator::Plus,
+            BinaryExprs::Sub(_) => BinaryOperator::Minus,
+            BinaryExprs::Mul(_) => BinaryOperator::Multiply,
+            BinaryExprs::Div(_) => BinaryOperator::Divide,
+            BinaryExprs::Mod(_) => BinaryOperator::Modulo,
+        }
+    }
 }
 
 impl BinaryExpr for BinaryExprs {

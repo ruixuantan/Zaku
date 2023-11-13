@@ -79,6 +79,36 @@ async fn limit_query() {
 }
 
 #[tokio::test]
+async fn group_by_query() {
+    let sql = "SELECT is_available FROM test GROUP BY is_available";
+    let expected = DatasinkBuilder::default()
+        .add_schema(vec!["is_available"], vec!["bool"])
+        .add_data(vec![vec!["true"], vec!["false"]])
+        .build();
+    assert_eq!(run(sql).await.unwrap(), expected);
+}
+
+#[tokio::test]
+async fn aggregate_query() {
+    let sql = "SELECT SUM(price*2.0) AS inflation FROM test";
+    let expected = DatasinkBuilder::default()
+        .add_schema(vec!["inflation"], vec!["float"])
+        .add_data(vec![vec!["105"]])
+        .build();
+    assert_eq!(run(sql).await.unwrap(), expected);
+}
+
+#[tokio::test]
+async fn aggregate_group_by_query() {
+    let sql = "SELECT AVG(price) * SUM(quantity) AS estimated from test GROUP BY is_available";
+    let expected = DatasinkBuilder::default()
+        .add_schema(vec!["estimated"], vec!["float"])
+        .add_data(vec![vec!["0"], vec!["2335.625"]])
+        .build();
+    assert_eq!(run(sql).await.unwrap(), expected);
+}
+
+#[tokio::test]
 async fn complex_query() {
     let sql =
         "SELECT id, product_name, (price*quantity) AS total FROM test WHERE quantity <> 0 LIMIT 3";

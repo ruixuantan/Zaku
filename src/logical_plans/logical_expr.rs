@@ -22,6 +22,7 @@ pub trait LogicalExpr {
 #[derive(Debug, Clone)]
 pub enum LogicalExprs {
     Column(Column),
+    ColumnIndex(usize),
     LiteralText(String),
     LiteralBoolean(bool),
     LiteralInteger(i32),
@@ -32,14 +33,20 @@ pub enum LogicalExprs {
 }
 
 impl LogicalExprs {
-    pub fn is_aggregate(&self) -> bool {
-        matches!(self, LogicalExprs::AggregateExpr(_))
-    }
-
-    pub fn as_aggregate(&self) -> AggregateExprs {
+    // extracts all nested aggregate functions
+    pub fn as_aggregate(&self) -> Vec<AggregateExprs> {
         match self {
-            LogicalExprs::AggregateExpr(expr) => expr.clone(),
-            _ => panic!("Only AggregateExprs can be converted"),
+            LogicalExprs::AggregateExpr(expr) => vec![expr.clone()],
+            LogicalExprs::AliasExpr(expr) => expr.expr.as_aggregate(),
+            LogicalExprs::BinaryExpr(expr) => {
+                let mut exprs = vec![];
+                let mut l = expr.get_l().as_aggregate();
+                exprs.append(&mut l);
+                let mut r = expr.get_r().as_aggregate();
+                exprs.append(&mut r);
+                exprs
+            }
+            _ => vec![],
         }
     }
 }
@@ -48,6 +55,9 @@ impl LogicalExpr for LogicalExprs {
     fn to_field(&self, input: &LogicalPlans) -> Result<Field, ZakuError> {
         match self {
             LogicalExprs::Column(column) => column.column_to_field(input),
+            LogicalExprs::ColumnIndex(index) => {
+                Ok(input.schema().get_field_by_index(index)?.clone())
+            }
             LogicalExprs::LiteralText(value) => Ok(Field::new(value.clone(), DataType::Text)),
             LogicalExprs::LiteralBoolean(value) => {
                 Ok(Field::new(value.to_string(), DataType::Boolean))
@@ -65,15 +75,14 @@ impl LogicalExpr for LogicalExprs {
     fn to_physical_expr(&self, input: &LogicalPlans) -> Result<PhysicalExprs, ZakuError> {
         match self {
             LogicalExprs::Column(column) => column.column_to_physical_expr(input),
+            LogicalExprs::ColumnIndex(index) => Ok(PhysicalExprs::Column(*index)),
             LogicalExprs::LiteralText(value) => Ok(PhysicalExprs::LiteralText(value.clone())),
             LogicalExprs::LiteralBoolean(value) => Ok(PhysicalExprs::LiteralBoolean(*value)),
             LogicalExprs::LiteralInteger(value) => Ok(PhysicalExprs::LiteralInteger(*value)),
             LogicalExprs::LiteralFloat(value) => Ok(PhysicalExprs::LiteralFloat(*value)),
             LogicalExprs::BinaryExpr(expr) => expr.to_physical_expr(input),
             LogicalExprs::AliasExpr(expr) => expr.to_physical_expr(input),
-            LogicalExprs::AggregateExpr(_) => {
-                panic!("AggregateExprs should not be converted to PhysicalExprs")
-            }
+            LogicalExprs::AggregateExpr(expr) => expr.input().to_physical_expr(input),
         }
     }
 }
@@ -84,6 +93,7 @@ impl Display for LogicalExprs {
             LogicalExprs::Column(column) => {
                 format!("#{}", column.name())
             }
+            LogicalExprs::ColumnIndex(index) => format!("#{}", index),
             LogicalExprs::LiteralText(value) => value.clone(),
             LogicalExprs::LiteralBoolean(value) => value.to_string(),
             LogicalExprs::LiteralInteger(value) => value.to_string(),
@@ -131,6 +141,14 @@ impl AliasExpr {
             expr: Box::new(expr),
             alias,
         }
+    }
+
+    pub fn alias(&self) -> &String {
+        &self.alias
+    }
+
+    pub fn expr(&self) -> &LogicalExprs {
+        &self.expr
     }
 }
 
