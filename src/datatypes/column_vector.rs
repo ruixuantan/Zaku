@@ -181,28 +181,28 @@ mod test {
     #[test]
     fn test_column_vector_iterator() {
         let vector = ColumnVector::new(
-            DataType::Integer,
-            vec![Value::Integer(0), Value::Integer(1), Value::Integer(2)],
+            DataType::Number,
+            vec![Value::number("0"), Value::number("1"), Value::number("2")],
         );
         for i in 0..vector.size() + 1 {
             if i == vector.size() {
                 let res = std::panic::catch_unwind(|| vector.get_value(&i));
                 assert!(res.is_err());
             } else {
-                assert_eq!(vector.get_value(&i), &Value::Integer(i as i32));
+                assert_eq!(vector.get_value(&i), &Value::number(i.to_string().as_str()));
             }
         }
     }
 
     #[test]
     fn test_literal_vector_iterator() {
-        let vector = LiteralVector::new(DataType::Integer, Value::Integer(2), 3);
+        let vector = LiteralVector::new(DataType::Number, Value::number("2"), 3);
         for i in 0..vector.size + 1 {
             if i == vector.size {
                 let res = std::panic::catch_unwind(|| vector.get_value(&i));
                 assert!(res.is_err());
             } else {
-                assert_eq!(vector.get_value(&i), &Value::Integer(2));
+                assert_eq!(vector.get_value(&i), &Value::number("2"));
             }
         }
     }

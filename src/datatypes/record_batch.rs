@@ -116,13 +116,13 @@ mod test {
     #[test]
     fn test_record_batch_iterator() {
         let schema = Schema::new(vec![
-            Field::new("id".to_string(), DataType::Integer),
+            Field::new("id".to_string(), DataType::Number),
             Field::new("name".to_string(), DataType::Text),
         ]);
         let columns = vec![
             Arc::new(Vectors::LiteralVector(LiteralVector::new(
-                DataType::Integer,
-                Value::Integer(0),
+                DataType::Number,
+                Value::number("0"),
                 10,
             ))),
             Arc::new(Vectors::LiteralVector(LiteralVector::new(
@@ -146,26 +146,26 @@ mod test {
     #[test]
     fn test_sort() {
         let schema = Schema::new(vec![
-            Field::new("1".to_string(), DataType::Integer),
+            Field::new("1".to_string(), DataType::Number),
             Field::new("2".to_string(), DataType::Text),
         ]);
         let columns = vec![
             Arc::new(Vectors::ColumnVector(ColumnVector::new(
-                DataType::Integer,
+                DataType::Number,
                 vec![
-                    Value::Integer(0),
-                    Value::Integer(2),
-                    Value::Integer(1),
-                    Value::Integer(3),
+                    Value::number("0"),
+                    Value::number("2"),
+                    Value::number("1"),
+                    Value::number("3"),
                 ],
             ))),
             Arc::new(Vectors::ColumnVector(ColumnVector::new(
-                DataType::Integer,
+                DataType::Number,
                 vec![
-                    Value::Integer(0),
-                    Value::Integer(2),
-                    Value::Integer(1),
-                    Value::Integer(1),
+                    Value::number("0"),
+                    Value::number("2"),
+                    Value::number("1"),
+                    Value::number("1"),
                 ],
             ))),
         ];
@@ -178,7 +178,7 @@ mod test {
             .iter()
             .enumerate()
             .for_each(|(i, v)| {
-                assert_eq!(v, &Value::Integer(ex1[i]));
+                assert_eq!(v, &Value::number(ex1[i].to_string().as_str()));
             });
 
         let ex2 = [0, 1, 2, 1];
@@ -186,7 +186,7 @@ mod test {
             .iter()
             .enumerate()
             .for_each(|(i, v)| {
-                assert_eq!(v, &Value::Integer(ex2[i]));
+                assert_eq!(v, &Value::number(ex2[i].to_string().as_str()));
             });
     }
 }

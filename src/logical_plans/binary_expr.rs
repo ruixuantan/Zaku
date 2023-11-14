@@ -255,14 +255,8 @@ fn get_datatype(
     let err = Err(ZakuError::new("Datatypes do not match"));
 
     match l_datatype {
-        DataType::Integer => match r_datatype {
-            DataType::Integer => Ok(DataType::Integer),
-            DataType::Float => Ok(DataType::Float),
-            _ => err,
-        },
-        DataType::Float => match r_datatype {
-            DataType::Integer => Ok(DataType::Float),
-            DataType::Float => Ok(DataType::Float),
+        DataType::Number => match r_datatype {
+            DataType::Number => Ok(DataType::Number),
             _ => err,
         },
         DataType::Text => match r_datatype {

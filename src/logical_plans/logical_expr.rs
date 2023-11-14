@@ -1,5 +1,7 @@
 use std::fmt::Display;
 
+use bigdecimal::BigDecimal;
+
 use crate::{
     datatypes::{schema::Field, types::DataType},
     error::ZakuError,
@@ -25,8 +27,7 @@ pub enum LogicalExprs {
     ColumnIndex(usize),
     LiteralText(String),
     LiteralBoolean(bool),
-    LiteralInteger(i32),
-    LiteralFloat(f32),
+    LiteralNumber(BigDecimal),
     BinaryExpr(BinaryExprs),
     AggregateExpr(AggregateExprs),
     AliasExpr(AliasExpr),
@@ -62,10 +63,9 @@ impl LogicalExpr for LogicalExprs {
             LogicalExprs::LiteralBoolean(value) => {
                 Ok(Field::new(value.to_string(), DataType::Boolean))
             }
-            LogicalExprs::LiteralInteger(value) => {
-                Ok(Field::new(value.to_string(), DataType::Integer))
+            LogicalExprs::LiteralNumber(value) => {
+                Ok(Field::new(value.to_string(), DataType::Number))
             }
-            LogicalExprs::LiteralFloat(value) => Ok(Field::new(value.to_string(), DataType::Float)),
             LogicalExprs::BinaryExpr(expr) => expr.to_field(input),
             LogicalExprs::AggregateExpr(expr) => expr.to_field(input),
             LogicalExprs::AliasExpr(expr) => expr.to_field(input),
@@ -78,8 +78,7 @@ impl LogicalExpr for LogicalExprs {
             LogicalExprs::ColumnIndex(index) => Ok(PhysicalExprs::Column(*index)),
             LogicalExprs::LiteralText(value) => Ok(PhysicalExprs::LiteralText(value.clone())),
             LogicalExprs::LiteralBoolean(value) => Ok(PhysicalExprs::LiteralBoolean(*value)),
-            LogicalExprs::LiteralInteger(value) => Ok(PhysicalExprs::LiteralInteger(*value)),
-            LogicalExprs::LiteralFloat(value) => Ok(PhysicalExprs::LiteralFloat(*value)),
+            LogicalExprs::LiteralNumber(value) => Ok(PhysicalExprs::LiteralNumber(value.clone())),
             LogicalExprs::BinaryExpr(expr) => expr.to_physical_expr(input),
             LogicalExprs::AliasExpr(expr) => expr.to_physical_expr(input),
             LogicalExprs::AggregateExpr(expr) => expr.input().to_physical_expr(input),
@@ -96,8 +95,7 @@ impl Display for LogicalExprs {
             LogicalExprs::ColumnIndex(index) => format!("#{}", index),
             LogicalExprs::LiteralText(value) => value.clone(),
             LogicalExprs::LiteralBoolean(value) => value.to_string(),
-            LogicalExprs::LiteralInteger(value) => value.to_string(),
-            LogicalExprs::LiteralFloat(value) => value.to_string(),
+            LogicalExprs::LiteralNumber(value) => value.to_string(),
             LogicalExprs::BinaryExpr(expr) => expr.to_string(),
             LogicalExprs::AggregateExpr(expr) => expr.to_string(),
             LogicalExprs::AliasExpr(expr) => expr.to_string(),

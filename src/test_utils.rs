@@ -21,9 +21,8 @@ impl DatasinkBuilder {
 
     fn get_datatype_from_str(str_val: &str) -> DataType {
         match str_val {
-            "int" => DataType::Integer,
+            "num" => DataType::Number,
             "text" => DataType::Text,
-            "float" => DataType::Float,
             "bool" => DataType::Boolean,
             _ => panic!("Unsupported datatype"),
         }

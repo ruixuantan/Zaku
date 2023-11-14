@@ -16,7 +16,7 @@ async fn basic_query() {
     let expected = DatasinkBuilder::default()
         .add_schema(
             vec!["id", "product_name", "is_available", "price", "quantity"],
-            vec!["int", "text", "bool", "float", "int"],
+            vec!["num", "text", "bool", "num", "num"],
         )
         .add_data(vec![
             vec!["1", "toothbrush", "true", "5.00", "100"],
@@ -33,7 +33,7 @@ async fn basic_query() {
 async fn projection_query() {
     let sql = "SELECT id, product_name FROM test";
     let expected = DatasinkBuilder::default()
-        .add_schema(vec!["id", "product_name"], vec!["int", "text"])
+        .add_schema(vec!["id", "product_name"], vec!["num", "text"])
         .add_data(vec![
             vec!["1", "toothbrush"],
             vec!["2", "toothpaste"],
@@ -51,7 +51,7 @@ async fn filter_query() {
     let expected = DatasinkBuilder::default()
         .add_schema(
             vec!["id", "product_name", "is_available", "price", "quantity"],
-            vec!["int", "text", "bool", "float", "int"],
+            vec!["num", "text", "bool", "num", "num"],
         )
         .add_data(vec![
             vec!["2", "toothpaste", "true", "10.00", "50"],
@@ -68,7 +68,7 @@ async fn limit_query() {
     let expected = DatasinkBuilder::default()
         .add_schema(
             vec!["id", "product_name", "is_available", "price", "quantity"],
-            vec!["int", "text", "bool", "float", "int"],
+            vec!["num", "text", "bool", "num", "num"],
         )
         .add_data(vec![
             vec!["1", "toothbrush", "true", "5.00", "100"],
@@ -82,7 +82,7 @@ async fn limit_query() {
 async fn order_by_query() {
     let sql = "SELECT id FROM test ORDER BY id DESC";
     let expected = DatasinkBuilder::default()
-        .add_schema(vec!["id"], vec!["int"])
+        .add_schema(vec!["id"], vec!["num"])
         .add_data(vec![vec!["5"], vec!["4"], vec!["3"], vec!["2"], vec!["1"]])
         .build();
     assert_eq!(run(sql).await.unwrap(), expected);
@@ -92,7 +92,7 @@ async fn order_by_query() {
 async fn aggregate_query() {
     let sql = "SELECT SUM(price*2.0) AS inflation FROM test";
     let expected = DatasinkBuilder::default()
-        .add_schema(vec!["inflation"], vec!["float"])
+        .add_schema(vec!["inflation"], vec!["num"])
         .add_data(vec![vec!["105"]])
         .build();
     assert_eq!(run(sql).await.unwrap(), expected);
@@ -102,7 +102,7 @@ async fn aggregate_query() {
 async fn aggregate_group_by_query() {
     let sql = "SELECT AVG(price) * SUM(quantity) AS estimated FROM test WHERE is_available = true GROUP BY is_available";
     let expected = DatasinkBuilder::default()
-        .add_schema(vec!["estimated"], vec!["float"])
+        .add_schema(vec!["estimated"], vec!["num"])
         .add_data(vec![vec!["2335.625"]])
         .build();
     assert_eq!(run(sql).await.unwrap(), expected);
@@ -112,7 +112,7 @@ async fn aggregate_group_by_query() {
 async fn having_query() {
     let sql = "SELECT COUNT(id) AS count FROM test GROUP BY is_available HAVING COUNT(id) > 2 AND is_available = true";
     let expected = DatasinkBuilder::default()
-        .add_schema(vec!["count"], vec!["int"])
+        .add_schema(vec!["count"], vec!["num"])
         .add_data(vec![vec!["4"]])
         .build();
     assert_eq!(run(sql).await.unwrap(), expected);
@@ -125,7 +125,7 @@ async fn complex_query() {
     let expected = DatasinkBuilder::default()
         .add_schema(
             vec!["id", "product_name", "total"],
-            vec!["int", "text", "float"],
+            vec!["num", "text", "num"],
         )
         .add_data(vec![
             vec!["1", "toothbrush", "500.00"],

@@ -106,10 +106,10 @@ mod test {
 
     fn get_schema() -> Schema {
         let fields = vec![
-            Field::new("id".to_string(), DataType::Integer),
+            Field::new("id".to_string(), DataType::Number),
             Field::new("name".to_string(), DataType::Text),
-            Field::new("age".to_string(), DataType::Integer),
-            Field::new("weight".to_string(), DataType::Float),
+            Field::new("age".to_string(), DataType::Number),
+            Field::new("weight".to_string(), DataType::Number),
         ];
         Schema::new(fields)
     }
@@ -119,16 +119,16 @@ mod test {
         let schema = get_schema();
         assert_eq!(
             schema.get_datatype_from_index(&0).unwrap(),
-            &DataType::Integer
+            &DataType::Number
         );
         assert_eq!(schema.get_datatype_from_index(&1).unwrap(), &DataType::Text);
         assert_eq!(
             schema.get_datatype_from_index(&2).unwrap(),
-            &DataType::Integer
+            &DataType::Number
         );
         assert_eq!(
             schema.get_datatype_from_index(&3).unwrap(),
-            &DataType::Float
+            &DataType::Number
         );
     }
 
@@ -137,7 +137,7 @@ mod test {
         let schema = get_schema();
         let selected_schema = schema.select(&["id".to_string(), "name".to_string()]);
         let ex_fields = vec![
-            Field::new("id".to_string(), DataType::Integer),
+            Field::new("id".to_string(), DataType::Number),
             Field::new("name".to_string(), DataType::Text),
         ];
         let ex_schema = Schema::new(ex_fields);

@@ -10,6 +10,8 @@ pub enum ZakuError {
     SqlParserError(#[from] sqlparser::parser::ParserError),
     #[error("Parse int error: {0}")]
     ParseIntError(#[from] std::num::ParseIntError),
+    #[error("Parse bigdecimal error: {0}")]
+    ParseBigDecimalError(#[from] bigdecimal::ParseBigDecimalError),
     #[error("ZakuError: {0}")]
     InternalError(String),
 }

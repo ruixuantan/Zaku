@@ -150,11 +150,11 @@ mod test {
         assert_eq!(
             schema.fields(),
             &vec![
-                Field::new("id".to_string(), DataType::Integer),
+                Field::new("id".to_string(), DataType::Number),
                 Field::new("product_name".to_string(), DataType::Text),
                 Field::new("is_available".to_string(), DataType::Boolean),
-                Field::new("price".to_string(), DataType::Float),
-                Field::new("quantity".to_string(), DataType::Integer)
+                Field::new("price".to_string(), DataType::Number),
+                Field::new("quantity".to_string(), DataType::Number)
             ]
         );
     }
@@ -172,8 +172,11 @@ mod test {
         let cols = record_batch.columns();
         let ex_cols = vec![
             Arc::new(Vectors::ColumnVector(ColumnVector::new(
-                DataType::Integer,
-                [1, 2, 3, 4, 5].iter().map(|i| Value::Integer(*i)).collect(),
+                DataType::Number,
+                ["1", "2", "3", "4", "5"]
+                    .iter()
+                    .map(|i| Value::number(i))
+                    .collect(),
             ))),
             Arc::new(Vectors::ColumnVector(ColumnVector::new(
                 DataType::Text,
@@ -196,17 +199,17 @@ mod test {
                     .collect(),
             ))),
             Arc::new(Vectors::ColumnVector(ColumnVector::new(
-                DataType::Float,
+                DataType::Number,
                 [5.00, 10.00, 15.50, 2.00, 20.00]
                     .iter()
-                    .map(|f| Value::Float(*f))
+                    .map(|f| Value::number(f.to_string().as_str()))
                     .collect(),
             ))),
             Arc::new(Vectors::ColumnVector(ColumnVector::new(
-                DataType::Integer,
+                DataType::Number,
                 [100, 50, 25, 0, 10]
                     .iter()
-                    .map(|i| Value::Integer(*i))
+                    .map(|i| Value::number(i.to_string().as_str()))
                     .collect(),
             ))),
         ];

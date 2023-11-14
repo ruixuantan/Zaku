@@ -112,16 +112,16 @@ mod test {
     #[test]
     fn test_compute_cell_space() {
         let schema = Schema::new(vec![
-            Field::new("id".to_string(), DataType::Integer),
+            Field::new("id".to_string(), DataType::Number),
             Field::new("name".to_string(), DataType::Text),
-            Field::new("age".to_string(), DataType::Integer),
+            Field::new("age".to_string(), DataType::Number),
         ]);
         let data = Datasink::new(
             schema.clone(),
             vec![
                 Arc::new(Vectors::ColumnVector(ColumnVector::new(
-                    DataType::Integer,
-                    vec![Value::Integer(1), Value::Integer(2), Value::Integer(3)],
+                    DataType::Number,
+                    vec![Value::number("1"), Value::number("2"), Value::number("3")],
                 ))),
                 Arc::new(Vectors::ColumnVector(ColumnVector::new(
                     DataType::Text,
@@ -132,8 +132,12 @@ mod test {
                     ],
                 ))),
                 Arc::new(Vectors::ColumnVector(ColumnVector::new(
-                    DataType::Integer,
-                    vec![Value::Integer(20), Value::Integer(21), Value::Integer(22)],
+                    DataType::Number,
+                    vec![
+                        Value::number("20"),
+                        Value::number("21"),
+                        Value::number("22"),
+                    ],
                 ))),
             ],
         );

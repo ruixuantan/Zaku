@@ -1,5 +1,6 @@
-use std::ops::Deref;
+use std::{ops::Deref, str::FromStr};
 
+use bigdecimal::BigDecimal;
 use sqlparser::{
     ast::Expr,
     ast::Select,
@@ -102,9 +103,9 @@ fn parse_expr(expr: &Expr) -> Result<LogicalExprs, ZakuError> {
         Expr::Identifier(ident) => Ok(LogicalExprs::Column(Column::new(ident.value.clone()))),
         Expr::Value(value) => match value {
             sqlparser::ast::Value::Boolean(b) => Ok(LogicalExprs::LiteralBoolean(*b)),
-            sqlparser::ast::Value::Number(n, _) => Ok(LogicalExprs::LiteralFloat(
-                n.parse::<f32>().expect("Value should be a float"),
-            )),
+            sqlparser::ast::Value::Number(n, _) => {
+                Ok(LogicalExprs::LiteralNumber(BigDecimal::from_str(n)?))
+            }
             sqlparser::ast::Value::SingleQuotedString(s) => {
                 Ok(LogicalExprs::LiteralText(s.clone()))
             }

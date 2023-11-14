@@ -90,7 +90,7 @@ impl Accumulator for Sum {
 }
 
 pub struct Count {
-    value: i32,
+    value: usize,
 }
 
 impl Count {
@@ -112,7 +112,7 @@ impl Accumulator for Count {
     }
 
     fn get_value(&self) -> Value {
-        Value::Integer(self.value)
+        Value::number(self.value.to_string().as_str())
     }
 }
 
@@ -226,7 +226,7 @@ impl Accumulator for Avg {
 
     fn get_value(&self) -> Value {
         match &self.sum {
-            Some(v) => v.div(&Value::Integer(self.count)),
+            Some(v) => v.div(&Value::number(self.count.to_string().as_str())),
             None => Value::Null,
         }
     }

@@ -32,7 +32,7 @@ impl AggregateExprs {
         match self {
             AggregateExprs::Count(expr) => Ok(Field::new(
                 expr.to_field(plan)?.name().clone(),
-                DataType::Integer,
+                DataType::Number,
             )),
             AggregateExprs::Sum(expr) => expr.to_field(plan),
             AggregateExprs::Avg(expr) => expr.to_field(plan),

@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use bigdecimal::BigDecimal;
+
 use crate::datatypes::{
     column_vector::{LiteralVector, Vectors},
     record_batch::RecordBatch,
@@ -17,8 +19,7 @@ pub enum PhysicalExprs {
     Column(usize),
     LiteralText(String),
     LiteralBoolean(bool),
-    LiteralInteger(i32),
-    LiteralFloat(f32),
+    LiteralNumber(BigDecimal),
     BooleanExpr(BooleanExpr),
     MathExpr(MathExpr),
 }
@@ -34,8 +35,9 @@ impl PhysicalExpr for PhysicalExprs {
                 create_literal(Value::Text(value.to_string()), size)
             }
             PhysicalExprs::LiteralBoolean(value) => create_literal(Value::Boolean(*value), size),
-            PhysicalExprs::LiteralInteger(value) => create_literal(Value::Integer(*value), size),
-            PhysicalExprs::LiteralFloat(value) => create_literal(Value::Float(*value), size),
+            PhysicalExprs::LiteralNumber(value) => {
+                create_literal(Value::Number(value.clone()), size)
+            }
             PhysicalExprs::BooleanExpr(expr) => expr.evaluate(batch),
             PhysicalExprs::MathExpr(expr) => expr.evaluate(batch),
         }
@@ -54,13 +56,8 @@ fn create_literal(val: Value, size: usize) -> Arc<Vectors> {
             val,
             size,
         ))),
-        Value::Integer(_) => Arc::new(Vectors::LiteralVector(LiteralVector::new(
-            DataType::Integer,
-            val,
-            size,
-        ))),
-        Value::Float(_) => Arc::new(Vectors::LiteralVector(LiteralVector::new(
-            DataType::Float,
+        Value::Number(_) => Arc::new(Vectors::LiteralVector(LiteralVector::new(
+            DataType::Number,
             val,
             size,
         ))),
