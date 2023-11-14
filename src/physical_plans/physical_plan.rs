@@ -359,7 +359,7 @@ impl HashAggregateExec {
                 .map(|e| e.input_expr().evaluate(&rb))
                 .collect();
 
-            (0..rb.row_count()).for_each(|i| {
+            (0..rb.row_count()).try_for_each(|i| {
                 let row_key: Vec<Value> = group_keys
                     .iter()
                     .map(|key| key.get_value(&i).clone())
@@ -375,10 +375,8 @@ impl HashAggregateExec {
                 accumulators
                     .iter_mut()
                     .zip(aggr_input.iter())
-                    .for_each(|(a, v)| {
-                        a.accumulate(v.get_value(&i)).unwrap();
-                    });
-            });
+                    .try_for_each(|(a, v)| a.accumulate(v.get_value(&i)))
+            })?;
         }
 
         let mut columns: Vec<Vec<Value>> =

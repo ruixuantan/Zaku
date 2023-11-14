@@ -1,5 +1,14 @@
 use std::{ops::Deref, str::FromStr};
 
+use crate::{
+    error::ZakuError,
+    logical_plans::{
+        aggregate_expr::AggregateExprs,
+        binary_expr::BinaryExprs,
+        dataframe::Dataframe,
+        logical_expr::{AliasExpr, Column, LogicalExprs},
+    },
+};
 use bigdecimal::BigDecimal;
 use sqlparser::{
     ast::Expr,
@@ -9,16 +18,6 @@ use sqlparser::{
         OrderByExpr, Statement,
     },
     ast::{Query, SelectItem},
-};
-
-use crate::{
-    error::ZakuError,
-    logical_plans::{
-        aggregate_expr::AggregateExprs,
-        binary_expr::BinaryExprs,
-        dataframe::Dataframe,
-        logical_expr::{AliasExpr, Column, LogicalExprs},
-    },
 };
 
 use super::stmt::{SelectStmt, Stmt};
@@ -106,9 +105,10 @@ fn parse_expr(expr: &Expr) -> Result<LogicalExprs, ZakuError> {
             sqlparser::ast::Value::Number(n, _) => {
                 Ok(LogicalExprs::LiteralNumber(BigDecimal::from_str(n)?))
             }
-            sqlparser::ast::Value::SingleQuotedString(s) => {
-                Ok(LogicalExprs::LiteralText(s.clone()))
-            }
+            sqlparser::ast::Value::SingleQuotedString(s) => match dateparser::parse(s) {
+                Ok(date) => Ok(LogicalExprs::LiteralDate(date.date_naive())),
+                Err(_) => Ok(LogicalExprs::LiteralText(s.clone())),
+            },
             _ => Err(ZakuError::new("Unsupported value")),
         },
         Expr::Nested(expr) => parse_expr(expr),

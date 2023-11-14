@@ -25,6 +25,7 @@ impl DatasinkBuilder {
             "num" => DataType::Number,
             "text" => DataType::Text,
             "bool" => DataType::Boolean,
+            "date" => DataType::Date,
             _ => panic!("Unsupported datatype"),
         }
     }

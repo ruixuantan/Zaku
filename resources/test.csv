@@ -1,6 +1,6 @@
-id,product_name,is_available,price,quantity
-1,toothbrush,true,5.00,100
-2,toothpaste,true,10.00,50
-3,shampoo,true,15.50,25
-4,soap,false,2.00,0
-5,shaving cream,true,20.00,10
+id,product_name,is_available,price,quantity,updated_on
+1,toothbrush,true,5.00,100,2023-06-06
+2,toothpaste,true,10.00,50,2023-01-01
+3,shampoo,true,15.50,25,2023-04-04
+4,soap,false,2.00,0,2023-02-02
+5,shaving cream,true,20.00,10,2023-03-03

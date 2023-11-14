@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use bigdecimal::BigDecimal;
+use chrono::NaiveDate;
 
 use crate::datatypes::{
     column_vector::{LiteralVector, Vectors},
@@ -20,6 +21,7 @@ pub enum PhysicalExprs {
     LiteralText(String),
     LiteralBoolean(bool),
     LiteralNumber(BigDecimal),
+    LiteralDate(NaiveDate),
     BooleanExpr(BooleanExpr),
     MathExpr(MathExpr),
 }
@@ -38,6 +40,7 @@ impl PhysicalExpr for PhysicalExprs {
             PhysicalExprs::LiteralNumber(value) => {
                 create_literal(Value::Number(value.clone()), size)
             }
+            PhysicalExprs::LiteralDate(value) => create_literal(Value::Date(*value), size),
             PhysicalExprs::BooleanExpr(expr) => expr.evaluate(batch),
             PhysicalExprs::MathExpr(expr) => expr.evaluate(batch),
         }
@@ -58,6 +61,11 @@ fn create_literal(val: Value, size: usize) -> Arc<Vectors> {
         ))),
         Value::Number(_) => Arc::new(Vectors::LiteralVector(LiteralVector::new(
             DataType::Number,
+            val,
+            size,
+        ))),
+        Value::Date(_) => Arc::new(Vectors::LiteralVector(LiteralVector::new(
+            DataType::Date,
             val,
             size,
         ))),

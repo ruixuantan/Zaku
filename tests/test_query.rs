@@ -15,15 +15,22 @@ async fn basic_query() {
     let sql = "SELECT * FROM test";
     let expected = DatasinkBuilder::default()
         .add_schema(
-            vec!["id", "product_name", "is_available", "price", "quantity"],
-            vec!["num", "text", "bool", "num", "num"],
+            vec![
+                "id",
+                "product_name",
+                "is_available",
+                "price",
+                "quantity",
+                "updated_on",
+            ],
+            vec!["num", "text", "bool", "num", "num", "date"],
         )
         .add_data(vec![
-            vec!["1", "toothbrush", "true", "5.00", "100"],
-            vec!["2", "toothpaste", "true", "10.00", "50"],
-            vec!["3", "shampoo", "true", "15.50", "25"],
-            vec!["4", "soap", "false", "2.00", "0"],
-            vec!["5", "shaving cream", "true", "20.00", "10"],
+            vec!["1", "toothbrush", "true", "5.00", "100", "2023-06-06"],
+            vec!["2", "toothpaste", "true", "10.00", "50", "2023-01-01"],
+            vec!["3", "shampoo", "true", "15.50", "25", "2023-04-04"],
+            vec!["4", "soap", "false", "2.00", "0", "2023-02-02"],
+            vec!["5", "shaving cream", "true", "20.00", "10", "2023-03-03"],
         ])
         .build();
     assert_eq!(run(sql).await.unwrap(), expected);
@@ -50,13 +57,20 @@ async fn filter_query() {
     let sql = "SELECT * FROM test WHERE price >= 10";
     let expected = DatasinkBuilder::default()
         .add_schema(
-            vec!["id", "product_name", "is_available", "price", "quantity"],
-            vec!["num", "text", "bool", "num", "num"],
+            vec![
+                "id",
+                "product_name",
+                "is_available",
+                "price",
+                "quantity",
+                "updated_on",
+            ],
+            vec!["num", "text", "bool", "num", "num", "date"],
         )
         .add_data(vec![
-            vec!["2", "toothpaste", "true", "10.00", "50"],
-            vec!["3", "shampoo", "true", "15.50", "25"],
-            vec!["5", "shaving cream", "true", "20.00", "10"],
+            vec!["2", "toothpaste", "true", "10.00", "50", "2023-01-01"],
+            vec!["3", "shampoo", "true", "15.50", "25", "2023-04-04"],
+            vec!["5", "shaving cream", "true", "20.00", "10", "2023-03-03"],
         ])
         .build();
     assert_eq!(run(sql).await.unwrap(), expected);
@@ -67,12 +81,19 @@ async fn limit_query() {
     let sql = "SELECT * FROM test LIMIT 2";
     let expected = DatasinkBuilder::default()
         .add_schema(
-            vec!["id", "product_name", "is_available", "price", "quantity"],
-            vec!["num", "text", "bool", "num", "num"],
+            vec![
+                "id",
+                "product_name",
+                "is_available",
+                "price",
+                "quantity",
+                "updated_on",
+            ],
+            vec!["num", "text", "bool", "num", "num", "date"],
         )
         .add_data(vec![
-            vec!["1", "toothbrush", "true", "5.00", "100"],
-            vec!["2", "toothpaste", "true", "10.00", "50"],
+            vec!["1", "toothbrush", "true", "5.00", "100", "2023-06-06"],
+            vec!["2", "toothpaste", "true", "10.00", "50", "2023-01-01"],
         ])
         .build();
     assert_eq!(run(sql).await.unwrap(), expected);

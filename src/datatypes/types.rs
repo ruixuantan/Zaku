@@ -4,6 +4,8 @@ use std::{
 };
 
 use bigdecimal::BigDecimal;
+use chrono::NaiveDate;
+use dateparser::parse;
 use std::str::FromStr;
 
 #[derive(Clone, Copy, Debug, PartialEq, Default)]
@@ -12,6 +14,7 @@ pub enum DataType {
     Text,
     Boolean,
     Number,
+    Date,
 }
 
 #[derive(Clone, Debug, PartialEq, PartialOrd, Ord, Eq, Hash)]
@@ -19,11 +22,15 @@ pub enum Value {
     Number(BigDecimal),
     Text(String),
     Boolean(bool),
+    Date(NaiveDate),
     Null,
 }
 
 impl DataType {
     pub fn get_type_from_string_val(val: &str) -> DataType {
+        if parse(val).is_ok() {
+            return DataType::Date;
+        }
         if BigDecimal::from_str(val).is_ok() {
             return DataType::Number;
         }
@@ -39,6 +46,10 @@ impl Value {
         Value::Number(BigDecimal::from_str(val).expect("Val should be a numeric value"))
     }
 
+    pub fn date(val: &str) -> Value {
+        Value::Date(parse(val).expect("Val should be a date value").date_naive())
+    }
+
     pub fn get_value_from_string_val(val: &str, datatype: &DataType) -> Value {
         if val.is_empty() {
             return Value::Null;
@@ -46,6 +57,11 @@ impl Value {
         match datatype {
             DataType::Number => Value::Number(
                 BigDecimal::from_str(val).unwrap_or_else(|_| panic!("Expected float, got {val}")),
+            ),
+            DataType::Date => Value::Date(
+                parse(val)
+                    .unwrap_or_else(|_| panic!("Expected date, got {val}"))
+                    .date_naive(),
             ),
             DataType::Boolean => Value::Boolean(
                 val.parse::<bool>()
@@ -92,6 +108,11 @@ impl Value {
                 Value::Null => Value::Boolean(false),
                 _ => panic!("Type mismatch"),
             },
+            Value::Date(l) => match other {
+                Value::Date(r) => Value::Boolean(*l == *r),
+                Value::Null => Value::Boolean(false),
+                _ => panic!("Type mismatch"),
+            },
             Value::Null => Value::Boolean(false),
         }
     }
@@ -113,6 +134,11 @@ impl Value {
                 Value::Null => Value::Boolean(false),
                 _ => panic!("Type mismatch"),
             },
+            Value::Date(l) => match other {
+                Value::Date(r) => Value::Boolean(*l != *r),
+                Value::Null => Value::Boolean(false),
+                _ => panic!("Type mismatch"),
+            },
             Value::Null => Value::Boolean(false),
         }
     }
@@ -127,6 +153,11 @@ impl Value {
             Value::Boolean(_) => panic!("Type mismatch"),
             Value::Text(l) => match other {
                 Value::Text(r) => Value::Boolean(*l > *r),
+                Value::Null => Value::Boolean(false),
+                _ => panic!("Type mismatch"),
+            },
+            Value::Date(l) => match other {
+                Value::Date(r) => Value::Boolean(*l > *r),
                 Value::Null => Value::Boolean(false),
                 _ => panic!("Type mismatch"),
             },
@@ -147,6 +178,11 @@ impl Value {
                 Value::Null => Value::Boolean(false),
                 _ => panic!("Type mismatch"),
             },
+            Value::Date(l) => match other {
+                Value::Date(r) => Value::Boolean(*l >= *r),
+                Value::Null => Value::Boolean(false),
+                _ => panic!("Type mismatch"),
+            },
             Value::Null => Value::Boolean(false),
         }
     }
@@ -164,6 +200,11 @@ impl Value {
                 Value::Null => Value::Boolean(false),
                 _ => panic!("Type mismatch"),
             },
+            Value::Date(l) => match other {
+                Value::Date(r) => Value::Boolean(*l < *r),
+                Value::Null => Value::Boolean(false),
+                _ => panic!("Type mismatch"),
+            },
             Value::Null => Value::Boolean(false),
         }
     }
@@ -178,6 +219,11 @@ impl Value {
             Value::Boolean(_) => panic!("Type mismatch"),
             Value::Text(l) => match other {
                 Value::Text(r) => Value::Boolean(*l <= *r),
+                Value::Null => Value::Boolean(false),
+                _ => panic!("Type mismatch"),
+            },
+            Value::Date(l) => match other {
+                Value::Date(r) => Value::Boolean(*l <= *r),
                 Value::Null => Value::Boolean(false),
                 _ => panic!("Type mismatch"),
             },
@@ -256,6 +302,11 @@ impl Value {
                 Value::Null | Value::Number(_) => other.clone(),
                 _ => panic!("Type not supported for max"),
             },
+            Value::Date(l) => match other {
+                Value::Date(r) => Value::Date(*l.max(r)),
+                Value::Null => self.clone(),
+                _ => panic!("Type mismatch"),
+            },
             _ => panic!("Type not supported for max"),
         }
     }
@@ -271,6 +322,11 @@ impl Value {
                 Value::Null | Value::Number(_) => other.clone(),
                 _ => panic!("Type not supported for max"),
             },
+            Value::Date(l) => match other {
+                Value::Date(r) => Value::Date(*l.min(r)),
+                Value::Null => self.clone(),
+                _ => panic!("Type mismatch"),
+            },
             _ => panic!("Type not supported for min"),
         }
     }
@@ -282,6 +338,7 @@ impl Display for Value {
             Value::Number(val) => write!(f, "{}", val),
             Value::Boolean(val) => write!(f, "{}", val),
             Value::Text(val) => write!(f, "{}", val),
+            Value::Date(val) => write!(f, "{}", val),
             Value::Null => write!(f, ""),
         }
     }

@@ -125,7 +125,8 @@ mod test {
                 Field::new("product_name".to_string(), DataType::Text),
                 Field::new("is_available".to_string(), DataType::Boolean),
                 Field::new("price".to_string(), DataType::Number),
-                Field::new("quantity".to_string(), DataType::Number)
+                Field::new("quantity".to_string(), DataType::Number),
+                Field::new("updated_on".to_string(), DataType::Date),
             ]
         );
     }
@@ -138,7 +139,7 @@ mod test {
         )
         .unwrap()[0];
         assert_eq!(record_batch.row_count(), 5);
-        assert_eq!(record_batch.column_count(), 5);
+        assert_eq!(record_batch.column_count(), 6);
 
         let cols = record_batch.columns();
         let ex_cols = vec![
@@ -182,6 +183,19 @@ mod test {
                     .iter()
                     .map(|i| Value::number(i.to_string().as_str()))
                     .collect(),
+            ))),
+            Arc::new(Vectors::ColumnVector(ColumnVector::new(
+                DataType::Date,
+                [
+                    "2023-06-06",
+                    "2023-01-01",
+                    "2023-04-04",
+                    "2023-02-02",
+                    "2023-03-03",
+                ]
+                .iter()
+                .map(|i| Value::date(i))
+                .collect(),
             ))),
         ];
         assert_eq!(cols, &ex_cols);

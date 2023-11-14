@@ -75,7 +75,7 @@ impl Accumulator for Sum {
                 let new_value = match value {
                     Value::Number(_) => Some(v.add(value)),
                     Value::Null => Some(v.add(&Value::number("0"))),
-                    _ => panic!("Sum only support number type"),
+                    _ => return Err(ZakuError::new("SUM only supports numeric values")),
                 };
                 self.value = new_value;
             }
@@ -140,9 +140,12 @@ impl Default for Min {
 impl Accumulator for Min {
     fn accumulate(&mut self, value: &Value) -> Result<(), ZakuError> {
         match &self.value {
-            Some(v) => {
-                self.value = Some(v.minimum(value));
-            }
+            Some(v) => match v {
+                Value::Number(_) => self.value = Some(v.minimum(value)),
+                Value::Date(_) => self.value = Some(v.minimum(value)),
+                Value::Null => self.value = Some(value.clone()),
+                _ => return Err(ZakuError::new("MIN only supports numeric and date values")),
+            },
             None => {
                 self.value = Some(value.clone());
             }
@@ -177,9 +180,12 @@ impl Default for Max {
 impl Accumulator for Max {
     fn accumulate(&mut self, value: &Value) -> Result<(), ZakuError> {
         match &self.value {
-            Some(v) => {
-                self.value = Some(v.maximum(value));
-            }
+            Some(v) => match v {
+                Value::Number(_) => self.value = Some(v.maximum(value)),
+                Value::Date(_) => self.value = Some(v.minimum(value)),
+                Value::Null => self.value = Some(value.clone()),
+                _ => return Err(ZakuError::new("MAX only supports numeric values")),
+            },
             None => {
                 self.value = Some(value.clone());
             }
@@ -222,7 +228,7 @@ impl Accumulator for Avg {
                 let new_value = match value {
                     Value::Number(_) => Some(v.add(value)),
                     Value::Null => Some(v.add(&Value::number("0"))),
-                    _ => panic!("Sum only support number type"),
+                    _ => return Err(ZakuError::new("AVG only supports numeric values")),
                 };
                 self.sum = new_value;
             }

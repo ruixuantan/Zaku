@@ -1,6 +1,7 @@
 use std::fmt::Display;
 
 use bigdecimal::BigDecimal;
+use chrono::NaiveDate;
 
 use crate::{
     datatypes::{schema::Field, types::DataType},
@@ -28,6 +29,7 @@ pub enum LogicalExprs {
     LiteralText(String),
     LiteralBoolean(bool),
     LiteralNumber(BigDecimal),
+    LiteralDate(NaiveDate),
     BinaryExpr(BinaryExprs),
     AggregateExpr(AggregateExprs),
     AliasExpr(AliasExpr),
@@ -66,6 +68,7 @@ impl LogicalExpr for LogicalExprs {
             LogicalExprs::LiteralNumber(value) => {
                 Ok(Field::new(value.to_string(), DataType::Number))
             }
+            LogicalExprs::LiteralDate(value) => Ok(Field::new(value.to_string(), DataType::Date)),
             LogicalExprs::BinaryExpr(expr) => expr.to_field(input),
             LogicalExprs::AggregateExpr(expr) => expr.to_field(input),
             LogicalExprs::AliasExpr(expr) => expr.to_field(input),
@@ -79,6 +82,7 @@ impl LogicalExpr for LogicalExprs {
             LogicalExprs::LiteralText(value) => Ok(PhysicalExprs::LiteralText(value.clone())),
             LogicalExprs::LiteralBoolean(value) => Ok(PhysicalExprs::LiteralBoolean(*value)),
             LogicalExprs::LiteralNumber(value) => Ok(PhysicalExprs::LiteralNumber(value.clone())),
+            LogicalExprs::LiteralDate(value) => Ok(PhysicalExprs::LiteralDate(*value)),
             LogicalExprs::BinaryExpr(expr) => expr.to_physical_expr(input),
             LogicalExprs::AliasExpr(expr) => expr.to_physical_expr(input),
             LogicalExprs::AggregateExpr(expr) => expr.input().to_physical_expr(input),
@@ -96,6 +100,7 @@ impl Display for LogicalExprs {
             LogicalExprs::LiteralText(value) => value.clone(),
             LogicalExprs::LiteralBoolean(value) => value.to_string(),
             LogicalExprs::LiteralNumber(value) => value.to_string(),
+            LogicalExprs::LiteralDate(value) => value.to_string(),
             LogicalExprs::BinaryExpr(expr) => expr.to_string(),
             LogicalExprs::AggregateExpr(expr) => expr.to_string(),
             LogicalExprs::AliasExpr(expr) => expr.to_string(),

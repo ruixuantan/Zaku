@@ -267,5 +267,9 @@ fn get_datatype(
             DataType::Boolean => Ok(DataType::Boolean),
             _ => err,
         },
+        DataType::Date => match r_datatype {
+            DataType::Date => Ok(DataType::Date),
+            _ => err,
+        },
     }
 }
