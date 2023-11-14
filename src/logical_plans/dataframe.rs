@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::{datasources::datasource::Datasource, datatypes::schema::Schema, error::ZakuError};
 
 use super::{
@@ -8,11 +10,11 @@ use super::{
 
 #[derive(Debug, Clone)]
 pub struct Dataframe {
-    plan: LogicalPlans,
+    plan: Arc<LogicalPlans>,
 }
 
 impl Dataframe {
-    pub fn new(plan: LogicalPlans) -> Dataframe {
+    pub fn new(plan: Arc<LogicalPlans>) -> Dataframe {
         Dataframe { plan }
     }
 
@@ -26,40 +28,39 @@ impl Dataframe {
 
     pub fn from_csv(filename: &str) -> Result<Dataframe, ZakuError> {
         let datasource = Datasource::from_csv(filename)?;
-        Ok(Dataframe::new(LogicalPlans::Scan(Scan::new(
+        Ok(Dataframe::new(Arc::new(LogicalPlans::Scan(Scan::new(
             datasource,
             filename.to_string(),
             Vec::new(),
-        ))))
+        )))))
     }
 
     pub fn projection(&self, expr: Vec<LogicalExprs>) -> Result<Dataframe, ZakuError> {
-        Ok(Dataframe::new(LogicalPlans::Projection(Projection::new(
-            self.plan.clone(),
-            expr,
-        )?)))
+        Ok(Dataframe::new(Arc::new(LogicalPlans::Projection(
+            Projection::new(self.plan.clone(), expr)?,
+        ))))
     }
 
     pub fn filter(&self, expr: LogicalExprs) -> Result<Dataframe, ZakuError> {
-        Ok(Dataframe::new(LogicalPlans::Filter(Filter::new(
+        Ok(Dataframe::new(Arc::new(LogicalPlans::Filter(Filter::new(
             self.plan.clone(),
             expr,
-        )?)))
+        )?))))
     }
 
     pub fn limit(&self, limit: usize) -> Result<Dataframe, ZakuError> {
-        Ok(Dataframe::new(LogicalPlans::Limit(Limit::new(
+        Ok(Dataframe::new(Arc::new(LogicalPlans::Limit(Limit::new(
             self.plan.clone(),
             limit,
-        )?)))
+        )?))))
     }
 
     pub fn sort(&self, sort_by: Vec<LogicalExprs>, asc: Vec<bool>) -> Result<Dataframe, ZakuError> {
-        Ok(Dataframe::new(LogicalPlans::Sort(Sort::new(
+        Ok(Dataframe::new(Arc::new(LogicalPlans::Sort(Sort::new(
             self.plan.clone(),
             sort_by,
             asc,
-        )?)))
+        )?))))
     }
 
     pub fn aggregate(
@@ -67,10 +68,8 @@ impl Dataframe {
         group_by: Vec<LogicalExprs>,
         aggregates: Vec<AggregateExprs>,
     ) -> Result<Dataframe, ZakuError> {
-        Ok(Dataframe::new(LogicalPlans::Aggregate(Aggregate::new(
-            self.plan.clone(),
-            group_by,
-            aggregates,
-        )?)))
+        Ok(Dataframe::new(Arc::new(LogicalPlans::Aggregate(
+            Aggregate::new(self.plan.clone(), group_by, aggregates)?,
+        ))))
     }
 }

@@ -19,17 +19,6 @@ pub trait Vector {
     }
 
     fn reorder(&self, indices: &[usize]) -> Vectors;
-
-    fn merge(&self, other: &Vectors) -> Vectors {
-        let mut merged = vec![];
-        for i in 0..self.size() {
-            merged.push(self.get_value(&i).clone());
-        }
-        for i in 0..other.size() {
-            merged.push(other.get_value(&i).clone());
-        }
-        Vectors::ColumnVector(ColumnVector::new(*self.get_type(), merged))
-    }
 }
 
 #[derive(Debug, PartialEq, Clone)]

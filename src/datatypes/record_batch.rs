@@ -3,11 +3,12 @@ use std::sync::Arc;
 use crate::error::ZakuError;
 
 use super::{
-    column_vector::{Vector, Vectors},
+    column_vector::{ColumnVector, Vector, Vectors},
     schema::Schema,
+    types::Value,
 };
 
-pub static VECTOR_SIZE: usize = 1000;
+pub static VECTOR_SIZE: usize = 1024;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct RecordBatch {
@@ -68,19 +69,46 @@ impl RecordBatch {
         Ok(RecordBatch::new(self.schema.clone(), sorted_cols))
     }
 
-    pub fn merge(&self, other: &RecordBatch) -> Result<RecordBatch, ZakuError> {
-        if self.schema != other.schema {
-            return Err(ZakuError::new("Schema mismatch"));
+    pub fn make_arc_cols(batch: Vec<Vec<Value>>, schema: &Schema) -> Vec<Arc<Vectors>> {
+        batch
+            .into_iter()
+            .enumerate()
+            .map(|(i, c)| {
+                Arc::new(Vectors::ColumnVector(ColumnVector::new(
+                    *schema
+                        .get_datatype_from_index(&i)
+                        .expect("Index out of bounds"),
+                    c,
+                )))
+            })
+            .collect()
+    }
+
+    // Takes a vector of vectors (column-format) and converts it to record batches
+    pub fn to_record_batch(cols: Vec<Vec<Value>>, schema: &Schema) -> Vec<RecordBatch> {
+        let schema_len = schema.fields().len();
+        let num_batches = (cols.len() / VECTOR_SIZE) + 1;
+        let mut seg_cols: Vec<Vec<Vec<Value>>> = (0..num_batches)
+            .map(|_| {
+                (0..schema_len)
+                    .map(|_| Vec::with_capacity(VECTOR_SIZE))
+                    .collect()
+            })
+            .collect();
+
+        for (i, col) in cols.iter().enumerate() {
+            for (j, val) in col.iter().enumerate() {
+                let batch_no = j / VECTOR_SIZE;
+                seg_cols[batch_no][i].push(val.clone());
+            }
         }
 
-        let mut merged_cols = vec![];
-        self.columns
-            .iter()
-            .zip(other.columns.iter())
-            .for_each(|(l, r)| {
-                merged_cols.push(Arc::new(l.merge(r)));
-            });
-        Ok(RecordBatch::new(self.schema.clone(), merged_cols))
+        let mut rbs = vec![];
+        for batch in seg_cols {
+            let arc_cols = RecordBatch::make_arc_cols(batch, schema);
+            rbs.push(RecordBatch::new(schema.clone(), arc_cols));
+        }
+        rbs
     }
 }
 

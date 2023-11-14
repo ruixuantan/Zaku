@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, sync::Arc};
 
 use enum_dispatch::enum_dispatch;
 
@@ -24,7 +24,7 @@ use super::{
 #[enum_dispatch]
 pub trait LogicalPlan {
     fn schema(&self) -> Schema;
-    fn children(&self) -> Vec<LogicalPlans>;
+    fn children(&self) -> Vec<Arc<LogicalPlans>>;
     fn to_string(&self) -> String;
     fn to_physical_plan(&self) -> Result<PhysicalPlans, ZakuError>;
 }
@@ -85,7 +85,7 @@ impl LogicalPlan for Scan {
         schema
     }
 
-    fn children(&self) -> Vec<LogicalPlans> {
+    fn children(&self) -> Vec<Arc<LogicalPlans>> {
         Vec::new()
     }
 
@@ -108,17 +108,17 @@ impl LogicalPlan for Scan {
 #[derive(Debug, Clone)]
 pub struct Projection {
     schema: Schema,
-    input: Box<LogicalPlans>,
+    input: Arc<LogicalPlans>,
     expr: Vec<LogicalExprs>,
 }
 
 impl Projection {
-    pub fn new(input: LogicalPlans, expr: Vec<LogicalExprs>) -> Result<Projection, ZakuError> {
+    pub fn new(input: Arc<LogicalPlans>, expr: Vec<LogicalExprs>) -> Result<Projection, ZakuError> {
         let schema: Result<Vec<Field>, _> = expr.iter().map(|e| e.to_field(&input)).collect();
 
         Ok(Projection {
             schema: Schema::new(schema?),
-            input: Box::new(input),
+            input,
             expr,
         })
     }
@@ -129,8 +129,8 @@ impl LogicalPlan for Projection {
         self.schema.clone()
     }
 
-    fn children(&self) -> Vec<LogicalPlans> {
-        vec![*self.input.clone()]
+    fn children(&self) -> Vec<Arc<LogicalPlans>> {
+        vec![self.input.clone()]
     }
 
     fn to_string(&self) -> String {
@@ -164,16 +164,13 @@ impl LogicalPlan for Projection {
 
 #[derive(Debug, Clone)]
 pub struct Filter {
-    input: Box<LogicalPlans>,
+    input: Arc<LogicalPlans>,
     expr: LogicalExprs,
 }
 
 impl Filter {
-    pub fn new(input: LogicalPlans, expr: LogicalExprs) -> Result<Filter, ZakuError> {
-        Ok(Filter {
-            input: Box::new(input),
-            expr,
-        })
+    pub fn new(input: Arc<LogicalPlans>, expr: LogicalExprs) -> Result<Filter, ZakuError> {
+        Ok(Filter { input, expr })
     }
 }
 
@@ -182,8 +179,8 @@ impl LogicalPlan for Filter {
         self.input.schema()
     }
 
-    fn children(&self) -> Vec<LogicalPlans> {
-        vec![*self.input.clone()]
+    fn children(&self) -> Vec<Arc<LogicalPlans>> {
+        vec![self.input.clone()]
     }
 
     fn to_string(&self) -> String {
@@ -203,16 +200,13 @@ impl LogicalPlan for Filter {
 
 #[derive(Debug, Clone)]
 pub struct Limit {
-    input: Box<LogicalPlans>,
+    input: Arc<LogicalPlans>,
     limit: usize,
 }
 
 impl Limit {
-    pub fn new(input: LogicalPlans, limit: usize) -> Result<Limit, ZakuError> {
-        Ok(Limit {
-            input: Box::new(input),
-            limit,
-        })
+    pub fn new(input: Arc<LogicalPlans>, limit: usize) -> Result<Limit, ZakuError> {
+        Ok(Limit { input, limit })
     }
 }
 
@@ -221,8 +215,8 @@ impl LogicalPlan for Limit {
         self.input.schema()
     }
 
-    fn children(&self) -> Vec<LogicalPlans> {
-        vec![*self.input.clone()]
+    fn children(&self) -> Vec<Arc<LogicalPlans>> {
+        vec![self.input.clone()]
     }
 
     fn to_string(&self) -> String {
@@ -242,14 +236,14 @@ impl LogicalPlan for Limit {
 #[derive(Debug, Clone)]
 pub struct Aggregate {
     schema: Schema,
-    input: Box<LogicalPlans>,
+    input: Arc<LogicalPlans>,
     group_expr: Vec<LogicalExprs>,
     aggregate_expr: Vec<AggregateExprs>,
 }
 
 impl Aggregate {
     pub fn new(
-        input: LogicalPlans,
+        input: Arc<LogicalPlans>,
         group_expr: Vec<LogicalExprs>,
         aggregate_expr: Vec<AggregateExprs>,
     ) -> Result<Aggregate, ZakuError> {
@@ -264,7 +258,7 @@ impl Aggregate {
         group_fields.append(&mut aggregate_fields);
         Ok(Aggregate {
             schema: Schema::new(group_fields),
-            input: Box::new(input),
+            input,
             group_expr,
             aggregate_expr,
         })
@@ -300,8 +294,8 @@ impl LogicalPlan for Aggregate {
         self.schema.clone()
     }
 
-    fn children(&self) -> Vec<LogicalPlans> {
-        vec![*self.input.clone()]
+    fn children(&self) -> Vec<Arc<LogicalPlans>> {
+        vec![self.input.clone()]
     }
 
     fn to_string(&self) -> String {
@@ -335,22 +329,18 @@ impl LogicalPlan for Aggregate {
 
 #[derive(Debug, Clone)]
 pub struct Sort {
-    input: Box<LogicalPlans>,
+    input: Arc<LogicalPlans>,
     keys: Vec<LogicalExprs>,
     asc: Vec<bool>,
 }
 
 impl Sort {
     pub fn new(
-        input: LogicalPlans,
+        input: Arc<LogicalPlans>,
         keys: Vec<LogicalExprs>,
         asc: Vec<bool>,
     ) -> Result<Sort, ZakuError> {
-        Ok(Sort {
-            input: Box::new(input),
-            keys,
-            asc,
-        })
+        Ok(Sort { input, keys, asc })
     }
 }
 
@@ -359,21 +349,23 @@ impl LogicalPlan for Sort {
         self.input.schema()
     }
 
-    fn children(&self) -> Vec<LogicalPlans> {
-        vec![*self.input.clone()]
+    fn children(&self) -> Vec<Arc<LogicalPlans>> {
+        vec![self.input.clone()]
     }
 
     fn to_string(&self) -> String {
         format!(
-            "Sort: keys={}, asc={}",
+            "Sort: keys={}",
             self.keys
                 .iter()
-                .map(|k| k.to_string())
-                .collect::<Vec<String>>()
-                .join(", "),
-            self.asc
-                .iter()
-                .map(|a| a.to_string())
+                .enumerate()
+                .map(|(i, k)| {
+                    let mut asc = "asc";
+                    if !self.asc[i] {
+                        asc = "desc";
+                    }
+                    format!("{} {}", k, asc)
+                })
                 .collect::<Vec<String>>()
                 .join(", ")
         )

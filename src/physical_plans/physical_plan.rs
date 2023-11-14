@@ -262,33 +262,50 @@ impl SortExec {
 
     #[try_stream(boxed, ok = RecordBatch, error = ZakuError)]
     pub async fn execute(&self) {
-        let mut rbs = vec![];
+        let sort_keys_idx = self
+            .sort_keys
+            .iter()
+            .flat_map(|e| match e {
+                PhysicalExprs::Column(i) => Ok(*i),
+                _ => Err(ZakuError::new("Sort keys must be column indexes")),
+            })
+            .collect::<Vec<usize>>();
+
+        // Aggregate and materialize all values
+        let mut cols: Vec<Vec<Value>> = self.schema().fields().iter().map(|_| vec![]).collect();
         #[for_await]
         for res in self.input.execute() {
-            let rb = res?;
-            let sort_keys_idx = self
-                .sort_keys
-                .iter()
-                .flat_map(|e| match e {
-                    PhysicalExprs::Column(i) => Ok(*i),
-                    _ => Err(ZakuError::new("Sort keys must be column indexes")),
-                })
-                .collect::<Vec<usize>>();
-            let sorted = rb.sort(&sort_keys_idx, &self.asc)?;
-            rbs.push(sorted);
+            let rb = res?.sort(&sort_keys_idx, &self.asc)?;
+            for (i, col) in rb.columns().iter().enumerate() {
+                col.iter().for_each(|v| {
+                    cols[i].push(v.clone());
+                });
+            }
         }
-        let sorted = rbs.iter().fold(None, |acc, col| match acc {
-            None => Some(col.clone()),
-            Some(acc) => Some(
-                acc.merge(col)
-                    .expect("Schemas of record batches should match"),
-            ),
+
+        // Sort all values
+        let rev_asc: Vec<&bool> = self.asc.iter().rev().collect();
+        sort_keys_idx.iter().rev().enumerate().for_each(|(i, k)| {
+            let mut new_sorted_cols = vec![];
+            let mut indices: Vec<usize> = (0..cols[*k].len()).collect();
+            indices.sort_by_key(|&i| cols[*k][i].clone());
+
+            if !rev_asc[i] {
+                indices.reverse();
+            }
+
+            cols.iter().for_each(|col| {
+                let mut reorder: Vec<Value> = Vec::with_capacity(col.len());
+                indices.iter().for_each(|i| {
+                    reorder.push(col[*i].clone());
+                });
+                new_sorted_cols.push(reorder);
+            });
+            cols = new_sorted_cols;
         });
 
-        if let Some(sorted) = sorted {
-            yield sorted
-        } else {
-            yield RecordBatch::new(self.schema.clone(), vec![])
+        for rb in RecordBatch::to_record_batch(cols, &self.schema()) {
+            yield rb
         }
     }
 }
@@ -377,20 +394,9 @@ impl HashAggregateExec {
                 i += 1;
             });
         });
-        let arc_cols: Vec<Arc<Vectors>> = columns
-            .iter()
-            .enumerate()
-            .map(|(i, col)| {
-                Arc::new(Vectors::ColumnVector(ColumnVector::new(
-                    *self
-                        .schema()
-                        .get_datatype_from_index(&i)
-                        .expect("Index was taken from schema length"),
-                    col.clone(),
-                )))
-            })
-            .collect();
-        yield RecordBatch::new(self.schema.clone(), arc_cols)
+        for rb in RecordBatch::to_record_batch(columns, &self.schema) {
+            yield rb
+        }
     }
 }
 

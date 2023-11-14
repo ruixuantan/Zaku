@@ -2,7 +2,8 @@ use std::sync::Arc;
 
 use crate::{
     datatypes::{
-        column_vector::{ColumnVector, Vectors},
+        column_vector::Vectors,
+        record_batch::RecordBatch,
         schema::{Field, Schema},
         types::{DataType, Value},
     },
@@ -67,16 +68,7 @@ impl DatasinkBuilder {
             })
         });
 
-        let arc_cols = cols
-            .iter()
-            .enumerate()
-            .map(|(i, col)| {
-                Arc::new(Vectors::ColumnVector(ColumnVector::new(
-                    *datatypes[i],
-                    col.clone(),
-                )))
-            })
-            .collect();
+        let arc_cols = RecordBatch::make_arc_cols(cols, self.schema.as_ref().unwrap());
         self.data = Some(arc_cols);
         self
     }

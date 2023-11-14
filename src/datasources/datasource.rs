@@ -1,9 +1,6 @@
-use std::sync::Arc;
-
 use crate::{
     datatypes::{
-        column_vector::{ColumnVector, Vectors},
-        record_batch::{RecordBatch, VECTOR_SIZE},
+        record_batch::RecordBatch,
         schema::{Field, Schema},
         types::{DataType, Value},
     },
@@ -63,46 +60,20 @@ impl Datasource {
         Ok(Schema::new(fields))
     }
 
-    fn make_arc_cols(cols: Vec<Vec<Value>>, schema: &Schema) -> Vec<Arc<Vectors>> {
-        cols.into_iter()
-            .enumerate()
-            .map(|(i, c)| {
-                Arc::new(Vectors::ColumnVector(ColumnVector::new(
-                    *schema
-                        .get_datatype_from_index(&i)
-                        .expect("Index out of bounds"),
-                    c,
-                )))
-            })
-            .collect()
-    }
-
     fn load_csv_data(path: &str, schema: Schema) -> Result<Vec<RecordBatch>, ZakuError> {
         let mut rdr = csv::Reader::from_path(path)?;
-        let mut data = vec![];
-        let mut tracker: usize = 0;
         let schema_len = schema.fields().len();
         let mut cols: Vec<Vec<Value>> = (0..schema_len).map(|_| Vec::new()).collect();
 
         for record in rdr.records() {
             let r = record?;
-            if tracker == VECTOR_SIZE {
-                let arc_cols = Datasource::make_arc_cols(cols, &schema);
-                data.push(RecordBatch::new(schema.clone(), arc_cols));
-                tracker = 0;
-                cols = (0..schema_len).map(|_| Vec::new()).collect();
-            }
-
             for i in 0..schema.fields().len() {
                 let datatype = schema.get_datatype_from_index(&i)?;
                 let val = Value::get_value_from_string_val(&r[i], datatype);
                 cols[i].push(val);
             }
         }
-
-        let arc_cols = Datasource::make_arc_cols(cols, &schema);
-        data.push(RecordBatch::new(schema.clone(), arc_cols));
-        Ok(data)
+        Ok(RecordBatch::to_record_batch(cols, &schema))
     }
 }
 
