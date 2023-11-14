@@ -34,6 +34,7 @@ pub enum PhysicalPlans {
     Filter(FilterExec),
     Limit(LimitExec),
     HashAggregate(HashAggregateExec),
+    Sort(SortExec),
 }
 
 impl PhysicalPlans {
@@ -45,6 +46,7 @@ impl PhysicalPlans {
             PhysicalPlans::Filter(exec) => exec.execute(),
             PhysicalPlans::Limit(exec) => exec.execute(),
             PhysicalPlans::HashAggregate(exec) => exec.execute(),
+            PhysicalPlans::Sort(exec) => exec.execute(),
         };
         #[for_await]
         for res in stream {
@@ -226,6 +228,72 @@ impl LimitExec {
 }
 
 impl PhysicalPlan for LimitExec {
+    fn schema(&self) -> Schema {
+        self.schema.clone()
+    }
+
+    fn children(&self) -> Vec<PhysicalPlans> {
+        vec![*self.input.clone()]
+    }
+}
+
+#[derive(Clone)]
+pub struct SortExec {
+    schema: Schema,
+    input: Box<PhysicalPlans>,
+    sort_keys: Vec<PhysicalExprs>,
+    asc: Vec<bool>,
+}
+
+impl SortExec {
+    pub fn new(
+        schema: Schema,
+        input: PhysicalPlans,
+        sort_keys: Vec<PhysicalExprs>,
+        asc: Vec<bool>,
+    ) -> SortExec {
+        SortExec {
+            schema,
+            input: Box::new(input),
+            sort_keys,
+            asc,
+        }
+    }
+
+    #[try_stream(boxed, ok = RecordBatch, error = ZakuError)]
+    pub async fn execute(&self) {
+        let mut rbs = vec![];
+        #[for_await]
+        for res in self.input.execute() {
+            let rb = res?;
+            let sort_keys_idx = self
+                .sort_keys
+                .iter()
+                .flat_map(|e| match e {
+                    PhysicalExprs::Column(i) => Ok(*i),
+                    _ => Err(ZakuError::new("Sort keys must be column indexes")),
+                })
+                .collect::<Vec<usize>>();
+            let sorted = rb.sort(&sort_keys_idx, &self.asc)?;
+            rbs.push(sorted);
+        }
+        let sorted = rbs.iter().fold(None, |acc, col| match acc {
+            None => Some(col.clone()),
+            Some(acc) => Some(
+                acc.merge(col)
+                    .expect("Schemas of record batches should match"),
+            ),
+        });
+
+        if let Some(sorted) = sorted {
+            yield sorted
+        } else {
+            yield RecordBatch::new(self.schema.clone(), vec![])
+        }
+    }
+}
+
+impl PhysicalPlan for SortExec {
     fn schema(&self) -> Schema {
         self.schema.clone()
     }

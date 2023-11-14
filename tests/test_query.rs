@@ -79,6 +79,16 @@ async fn limit_query() {
 }
 
 #[tokio::test]
+async fn order_by_query() {
+    let sql = "SELECT id FROM test ORDER BY id DESC";
+    let expected = DatasinkBuilder::default()
+        .add_schema(vec!["id"], vec!["int"])
+        .add_data(vec![vec!["5"], vec!["4"], vec!["3"], vec!["2"], vec!["1"]])
+        .build();
+    assert_eq!(run(sql).await.unwrap(), expected);
+}
+
+#[tokio::test]
 async fn aggregate_query() {
     let sql = "SELECT SUM(price*2.0) AS inflation FROM test";
     let expected = DatasinkBuilder::default()

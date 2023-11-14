@@ -5,7 +5,7 @@ use sqlparser::{
     ast::Select,
     ast::{
         CopySource, CopyTarget, Function, FunctionArg, FunctionArgExpr, GroupByExpr, ObjectName,
-        Statement,
+        OrderByExpr, Statement,
     },
     ast::{Query, SelectItem},
 };
@@ -37,7 +37,9 @@ fn parse_select(query: &Query) -> Result<SelectStmt, ZakuError> {
         _ => Err(ZakuError::new("Not a select query")),
     };
 
-    Ok(SelectStmt::new(body?, limit?))
+    let order_by = query.order_by.clone();
+
+    Ok(SelectStmt::new(body?, limit?, order_by))
 }
 
 fn parse_projection(select: &Select) -> Result<Vec<LogicalExprs>, ZakuError> {
@@ -114,6 +116,18 @@ fn parse_expr(expr: &Expr) -> Result<LogicalExprs, ZakuError> {
     }
 }
 
+fn parse_order_by(exprs: &[OrderByExpr]) -> Result<(Vec<LogicalExprs>, Vec<bool>), ZakuError> {
+    let mut order_by_exprs = vec![];
+    let mut asc = vec![];
+    let _ = exprs.iter().try_for_each(|expr| {
+        let logical_expr = parse_expr(&expr.expr)?;
+        order_by_exprs.push(logical_expr);
+        asc.push(expr.asc.unwrap_or(true));
+        Ok::<(), ZakuError>(())
+    });
+    Ok((order_by_exprs, asc))
+}
+
 fn retrieve_aggregate_col_idx(aggr_expr_idx: &mut usize, expr: &LogicalExprs) -> LogicalExprs {
     match expr {
         LogicalExprs::AggregateExpr(_) => {
@@ -170,6 +184,11 @@ fn create_df(select: &SelectStmt, dataframe: Dataframe) -> Result<Dataframe, Zak
             df = df.projection(projections)?;
         }
 
+        if !select.order_by.is_empty() {
+            let (order_by_exprs, asc) = parse_order_by(&select.order_by)?;
+            df = df.sort(order_by_exprs, asc)?;
+        }
+
         if let Some(limit) = select.limit {
             df = df.limit(limit)?;
         }
@@ -185,6 +204,11 @@ fn create_df(select: &SelectStmt, dataframe: Dataframe) -> Result<Dataframe, Zak
     }
 
     df = df.projection(aggr_projections)?;
+
+    if !select.order_by.is_empty() {
+        let (order_by_exprs, asc) = parse_order_by(&select.order_by)?;
+        df = df.sort(order_by_exprs, asc)?;
+    }
 
     if let Some(limit) = select.limit {
         df = df.limit(limit)?;

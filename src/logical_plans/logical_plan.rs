@@ -11,6 +11,7 @@ use crate::{
         physical_expr::PhysicalExprs,
         physical_plan::{
             FilterExec, HashAggregateExec, LimitExec, PhysicalPlans, ProjectionExec, ScanExec,
+            SortExec,
         },
     },
 };
@@ -36,6 +37,7 @@ pub enum LogicalPlans {
     Filter(Filter),
     Limit(Limit),
     Aggregate(Aggregate),
+    Sort(Sort),
 }
 
 impl LogicalPlans {
@@ -327,6 +329,68 @@ impl LogicalPlan for Aggregate {
             physical_group_expr,
             physical_aggregate_expr,
             self.schema(),
+        )))
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Sort {
+    input: Box<LogicalPlans>,
+    keys: Vec<LogicalExprs>,
+    asc: Vec<bool>,
+}
+
+impl Sort {
+    pub fn new(
+        input: LogicalPlans,
+        keys: Vec<LogicalExprs>,
+        asc: Vec<bool>,
+    ) -> Result<Sort, ZakuError> {
+        Ok(Sort {
+            input: Box::new(input),
+            keys,
+            asc,
+        })
+    }
+}
+
+impl LogicalPlan for Sort {
+    fn schema(&self) -> Schema {
+        self.input.schema()
+    }
+
+    fn children(&self) -> Vec<LogicalPlans> {
+        vec![*self.input.clone()]
+    }
+
+    fn to_string(&self) -> String {
+        format!(
+            "Sort: keys={}, asc={}",
+            self.keys
+                .iter()
+                .map(|k| k.to_string())
+                .collect::<Vec<String>>()
+                .join(", "),
+            self.asc
+                .iter()
+                .map(|a| a.to_string())
+                .collect::<Vec<String>>()
+                .join(", ")
+        )
+    }
+
+    fn to_physical_plan(&self) -> Result<PhysicalPlans, ZakuError> {
+        let physical_plan = self.input.to_physical_plan()?;
+        let keys = self
+            .keys
+            .iter()
+            .flat_map(|k| k.to_physical_expr(&self.input))
+            .collect();
+        Ok(PhysicalPlans::Sort(SortExec::new(
+            self.schema(),
+            physical_plan,
+            keys,
+            self.asc.clone(),
         )))
     }
 }

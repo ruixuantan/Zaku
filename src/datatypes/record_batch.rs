@@ -49,6 +49,39 @@ impl RecordBatch {
         }
         Ok(self.columns[*index].clone())
     }
+
+    pub fn sort(&self, keys: &[usize], asc: &[bool]) -> Result<RecordBatch, ZakuError> {
+        let mut sorted_cols = self.columns.clone();
+        let asc: Vec<&bool> = asc.iter().rev().collect();
+        keys.iter().rev().enumerate().for_each(|(i, k)| {
+            let mut new_sorted_cols = vec![];
+            let mut indices = sorted_cols[*k].sort_indices();
+            if !asc[i] {
+                indices.reverse();
+            }
+
+            sorted_cols.iter().for_each(|col| {
+                new_sorted_cols.push(Arc::new(col.reorder(&indices)));
+            });
+            sorted_cols = new_sorted_cols;
+        });
+        Ok(RecordBatch::new(self.schema.clone(), sorted_cols))
+    }
+
+    pub fn merge(&self, other: &RecordBatch) -> Result<RecordBatch, ZakuError> {
+        if self.schema != other.schema {
+            return Err(ZakuError::new("Schema mismatch"));
+        }
+
+        let mut merged_cols = vec![];
+        self.columns
+            .iter()
+            .zip(other.columns.iter())
+            .for_each(|(l, r)| {
+                merged_cols.push(Arc::new(l.merge(r)));
+            });
+        Ok(RecordBatch::new(self.schema.clone(), merged_cols))
+    }
 }
 
 pub struct RecordBatchIterator<'a> {
@@ -76,7 +109,7 @@ mod test {
     use std::sync::Arc;
 
     use super::RecordBatch;
-    use crate::datatypes::column_vector::{LiteralVector, Vector, Vectors};
+    use crate::datatypes::column_vector::{ColumnVector, LiteralVector, Vector, Vectors};
     use crate::datatypes::schema::{Field, Schema};
     use crate::datatypes::types::{DataType, Value};
 
@@ -108,5 +141,52 @@ mod test {
                 assert_eq!(col.size(), 10);
             }
         }
+    }
+
+    #[test]
+    fn test_sort() {
+        let schema = Schema::new(vec![
+            Field::new("1".to_string(), DataType::Integer),
+            Field::new("2".to_string(), DataType::Text),
+        ]);
+        let columns = vec![
+            Arc::new(Vectors::ColumnVector(ColumnVector::new(
+                DataType::Integer,
+                vec![
+                    Value::Integer(0),
+                    Value::Integer(2),
+                    Value::Integer(1),
+                    Value::Integer(3),
+                ],
+            ))),
+            Arc::new(Vectors::ColumnVector(ColumnVector::new(
+                DataType::Integer,
+                vec![
+                    Value::Integer(0),
+                    Value::Integer(2),
+                    Value::Integer(1),
+                    Value::Integer(1),
+                ],
+            ))),
+        ];
+        let record_batch = RecordBatch::new(schema, columns);
+
+        let sorted_batch = record_batch.sort(&[0, 1], &[true, false]).unwrap();
+
+        let ex1 = [0, 1, 2, 3];
+        sorted_batch.columns[0]
+            .iter()
+            .enumerate()
+            .for_each(|(i, v)| {
+                assert_eq!(v, &Value::Integer(ex1[i]));
+            });
+
+        let ex2 = [0, 1, 2, 1];
+        sorted_batch.columns[1]
+            .iter()
+            .enumerate()
+            .for_each(|(i, v)| {
+                assert_eq!(v, &Value::Integer(ex2[i]));
+            });
     }
 }

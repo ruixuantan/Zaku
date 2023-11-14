@@ -3,7 +3,7 @@ use crate::{datasources::datasource::Datasource, datatypes::schema::Schema, erro
 use super::{
     aggregate_expr::AggregateExprs,
     logical_expr::LogicalExprs,
-    logical_plan::{Aggregate, Filter, Limit, LogicalPlan, LogicalPlans, Projection, Scan},
+    logical_plan::{Aggregate, Filter, Limit, LogicalPlan, LogicalPlans, Projection, Scan, Sort},
 };
 
 #[derive(Debug, Clone)]
@@ -51,6 +51,14 @@ impl Dataframe {
         Ok(Dataframe::new(LogicalPlans::Limit(Limit::new(
             self.plan.clone(),
             limit,
+        )?)))
+    }
+
+    pub fn sort(&self, sort_by: Vec<LogicalExprs>, asc: Vec<bool>) -> Result<Dataframe, ZakuError> {
+        Ok(Dataframe::new(LogicalPlans::Sort(Sort::new(
+            self.plan.clone(),
+            sort_by,
+            asc,
         )?)))
     }
 

@@ -12,7 +12,7 @@ pub enum DataType {
     Boolean,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub enum Value {
     Integer(i32),
     Float(f32),
@@ -381,6 +381,40 @@ impl Display for Value {
 }
 
 impl Eq for Value {}
+
+#[allow(clippy::derive_ord_xor_partial_ord)]
+impl Ord for Value {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        match self {
+            Value::Integer(l) => match other {
+                Value::Integer(r) => l.cmp(r),
+                Value::Float(r) => (*l as f32).partial_cmp(r).unwrap(),
+                Value::Null => std::cmp::Ordering::Less,
+                _ => panic!("Type mismatch"),
+            },
+            Value::Float(l) => match other {
+                Value::Float(r) => l.partial_cmp(r).unwrap(),
+                Value::Integer(r) => l.partial_cmp(&(*r as f32)).unwrap(),
+                Value::Null => std::cmp::Ordering::Less,
+                _ => panic!("Type mismatch"),
+            },
+            Value::Boolean(l) => match other {
+                Value::Boolean(r) => l.cmp(r),
+                Value::Null => std::cmp::Ordering::Less,
+                _ => panic!("Type mismatch"),
+            },
+            Value::Text(l) => match other {
+                Value::Text(r) => l.cmp(r),
+                Value::Null => std::cmp::Ordering::Less,
+                _ => panic!("Type mismatch"),
+            },
+            Value::Null => match other {
+                Value::Null => std::cmp::Ordering::Equal,
+                _ => std::cmp::Ordering::Greater,
+            },
+        }
+    }
+}
 
 impl Hash for Value {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {

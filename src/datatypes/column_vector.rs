@@ -11,6 +11,25 @@ pub trait Vector {
     fn iter(&self) -> Box<dyn Iterator<Item = &Value> + '_>;
 
     fn size(&self) -> usize;
+
+    fn sort_indices(&self) -> Vec<usize> {
+        let mut indices = (0..self.size()).collect::<Vec<_>>();
+        indices.sort_by_key(|&i| self.get_value(&i));
+        indices
+    }
+
+    fn reorder(&self, indices: &[usize]) -> Vectors;
+
+    fn merge(&self, other: &Vectors) -> Vectors {
+        let mut merged = vec![];
+        for i in 0..self.size() {
+            merged.push(self.get_value(&i).clone());
+        }
+        for i in 0..other.size() {
+            merged.push(other.get_value(&i).clone());
+        }
+        Vectors::ColumnVector(ColumnVector::new(*self.get_type(), merged))
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -53,6 +72,14 @@ impl Vector for ColumnVector {
             column_vector: self,
             index: 0,
         })
+    }
+
+    fn reorder(&self, indices: &[usize]) -> Vectors {
+        let mut values = vec![];
+        for i in indices {
+            values.push(self.get_value(i).clone());
+        }
+        Vectors::ColumnVector(ColumnVector::new(self.datatype, values))
     }
 }
 
@@ -117,6 +144,10 @@ impl Vector for LiteralVector {
             literal_vector: self,
             index: 0,
         })
+    }
+
+    fn reorder(&self, _indices: &[usize]) -> Vectors {
+        Vectors::LiteralVector(self.clone())
     }
 }
 
