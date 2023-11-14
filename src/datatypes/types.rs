@@ -214,7 +214,6 @@ impl Value {
             Value::Number(l) => match other {
                 Value::Number(r) => Value::Number(l * r),
                 Value::Null => Value::Null,
-
                 _ => panic!("Type mismatch"),
             },
             Value::Null => Value::Null,

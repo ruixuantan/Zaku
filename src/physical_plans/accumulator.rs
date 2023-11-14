@@ -72,7 +72,12 @@ impl Accumulator for Sum {
     fn accumulate(&mut self, value: &Value) -> Result<(), ZakuError> {
         match &self.value {
             Some(v) => {
-                self.value = Some(v.add(value));
+                let new_value = match value {
+                    Value::Number(_) => Some(v.add(value)),
+                    Value::Null => Some(v.add(&Value::number("0"))),
+                    _ => panic!("Sum only support number type"),
+                };
+                self.value = new_value;
             }
             None => {
                 self.value = Some(value.clone());
@@ -214,7 +219,12 @@ impl Accumulator for Avg {
     fn accumulate(&mut self, value: &Value) -> Result<(), ZakuError> {
         match &self.sum {
             Some(v) => {
-                self.sum = Some(v.add(value));
+                let new_value = match value {
+                    Value::Number(_) => Some(v.add(value)),
+                    Value::Null => Some(v.add(&Value::number("0"))),
+                    _ => panic!("Sum only support number type"),
+                };
+                self.sum = new_value;
             }
             None => {
                 self.sum = Some(value.clone());
