@@ -1,6 +1,13 @@
-use std::fmt::{Display, Formatter};
+use std::{
+    fmt::{Display, Formatter},
+    sync::Arc,
+};
 
-use super::types::DataType;
+use super::{
+    column_vector::{ColumnVector, Vectors},
+    record_batch::RecordBatch,
+    types::{DataType, Value},
+};
 use crate::error::ZakuError;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -97,6 +104,31 @@ impl Schema {
 
     pub fn as_header(&self) -> Vec<String> {
         self.fields.iter().map(|f| f.name().clone()).collect()
+    }
+
+    pub fn to_record_batch(&self) -> RecordBatch {
+        let new_schema = Schema::new(vec![
+            Field::new("Column".to_string(), DataType::Text),
+            Field::new("Datatype".to_string(), DataType::Text),
+        ]);
+        let mut cols = vec![];
+        let column = Arc::new(Vectors::ColumnVector(ColumnVector::new(
+            DataType::Text,
+            self.fields
+                .iter()
+                .map(|f| Value::Text(f.name().clone()))
+                .collect(),
+        )));
+        cols.push(column);
+        let datatypes = Arc::new(Vectors::ColumnVector(ColumnVector::new(
+            DataType::Text,
+            self.fields
+                .iter()
+                .map(|f| Value::Text(f.datatype().to_string()))
+                .collect(),
+        )));
+        cols.push(datatypes);
+        RecordBatch::new(new_schema, cols)
     }
 }
 

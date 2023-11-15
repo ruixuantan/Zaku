@@ -203,6 +203,9 @@ impl LimitExec {
         let mut counter = self.limit;
         #[for_await]
         for res in self.input.execute() {
+            if counter == 0 {
+                break;
+            }
             let rb = res?;
             let take = if counter > rb.row_count() {
                 counter -= rb.row_count();
@@ -212,7 +215,7 @@ impl LimitExec {
                 counter = 0;
                 temp
             };
-            let cols = rb
+            let cols: Vec<Arc<Vectors>> = rb
                 .iter()
                 .map(|c| {
                     Arc::new(Vectors::ColumnVector(ColumnVector::new(

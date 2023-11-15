@@ -19,6 +19,10 @@ impl Datasink {
         }
     }
 
+    pub fn num_batches(&self) -> usize {
+        self.data.len()
+    }
+
     pub fn schema(&self) -> &Schema {
         &self.schema
     }
@@ -26,13 +30,6 @@ impl Datasink {
     pub fn data(&self) -> &Vec<RecordBatch> {
         &self.data
     }
-
-    // pub fn get(&self, index: &usize) -> Result<Vec<Value>, ZakuError> {
-    //     if index >= &self.column_count() {
-    //         return Err(ZakuError::new("Index out of bounds"));
-    //     }
-    //     Ok(self.data[*index].clone())
-    // }
 
     pub fn iter(&self) -> DatasinkIterator {
         DatasinkIterator { ds: self, index: 0 }

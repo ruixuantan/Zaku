@@ -6,6 +6,7 @@ use zaku::{execute, Dataframe, ZakuError};
 pub enum Command {
     Quit,
     Execute(String),
+    Schema,
 }
 
 pub fn get_input() -> Result<Command, ZakuError> {
@@ -16,6 +17,8 @@ pub fn get_input() -> Result<Command, ZakuError> {
     input = input.trim().to_string();
     if input.as_str() == "quit" {
         return Ok(Command::Quit);
+    } else if input.as_str() == "schema" {
+        return Ok(Command::Schema);
     }
     Ok(Command::Execute(input))
 }
@@ -30,6 +33,9 @@ async fn execute_sql(sql: &str, df: Dataframe) -> Result<String, ZakuError> {
             println!("{}", rb.print(false));
         }
         row_count += rb.row_count();
+        if i == res.num_batches() - 1 {
+            break;
+        }
         print!("(Press (c) to print next rows)");
         std::io::stdout().flush()?;
 
@@ -43,7 +49,6 @@ async fn execute_sql(sql: &str, df: Dataframe) -> Result<String, ZakuError> {
 }
 
 async fn event_loop(df: Dataframe) {
-    println!("Schema read as: {}", df.schema());
     loop {
         let input = get_input();
         match input {
@@ -51,6 +56,9 @@ async fn event_loop(df: Dataframe) {
                 Ok(res) => println!("{}\n", res),
                 Err(e) => println!("{}\n", e),
             },
+            Ok(Command::Schema) => {
+                println!("{}\n", df.schema().to_record_batch().print(true));
+            }
             Ok(Command::Quit) => {
                 println!("Exiting Zaku...");
                 std::process::exit(0);
