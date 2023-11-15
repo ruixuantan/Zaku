@@ -6,6 +6,7 @@ A simple SQL query engine on singular CSV files, built with Rust.
 * `SELECT` queries with `WHERE`, `LIMIT`, `GROUP BY`, `HAVING`, `ORDER BY`
 * `EXPLAIN` statements
 * `COPY TO` csv file commands (but not `COPY FROM`)
+* Schema of csv file can be printed with input: `schema`
 
 ## Setting up
 Install rust nightly and pre-commit.
