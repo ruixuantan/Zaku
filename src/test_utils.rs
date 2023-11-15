@@ -1,5 +1,9 @@
+use std::sync::Arc;
+
 use crate::{
     datatypes::{
+        column_vector::{ColumnVector, Vectors},
+        record_batch::RecordBatch,
         schema::{Field, Schema},
         types::{DataType, Value},
     },
@@ -70,10 +74,25 @@ impl DatasinkBuilder {
     }
 
     pub fn build(&self) -> Datasink {
-        Datasink::new(
-            self.schema.as_ref().expect("Schema not set").clone(),
-            self.data.as_ref().expect("Data not set").clone(),
-        )
+        let mut arc_vec = vec![];
+        if let Some(cols) = self.data.clone() {
+            cols.iter().enumerate().for_each(|(i, col)| {
+                let vec = ColumnVector::new(
+                    *self
+                        .schema
+                        .clone()
+                        .unwrap()
+                        .get_datatype_from_index(&i)
+                        .unwrap(),
+                    col.clone(),
+                );
+                arc_vec.push(Arc::new(Vectors::ColumnVector(vec)));
+            })
+        }
+        Datasink::new(vec![RecordBatch::new(
+            self.schema.clone().unwrap(),
+            arc_vec,
+        )])
     }
 }
 

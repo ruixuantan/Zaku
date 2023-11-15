@@ -4,6 +4,7 @@ use crate::error::ZakuError;
 
 use super::{
     column_vector::{ColumnVector, Vector, Vectors},
+    prettifier::RecordBatchPrettifier,
     schema::Schema,
     types::Value,
 };
@@ -109,6 +110,11 @@ impl RecordBatch {
             rbs.push(RecordBatch::new(schema.clone(), arc_cols));
         }
         rbs
+    }
+
+    pub fn print(&self, with_schema: bool) -> String {
+        let prettifier = RecordBatchPrettifier::new(self, with_schema);
+        prettifier.prettify()
     }
 }
 

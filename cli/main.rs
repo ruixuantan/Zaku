@@ -22,7 +22,24 @@ pub fn get_input() -> Result<Command, ZakuError> {
 
 async fn execute_sql(sql: &str, df: Dataframe) -> Result<String, ZakuError> {
     let res = execute(sql, df).await?;
-    Ok(res.pretty_print())
+    let mut row_count = 0;
+    for (i, rb) in res.iter().enumerate() {
+        if i == 0 {
+            println!("{}", rb.print(true));
+        } else {
+            println!("{}", rb.print(false));
+        }
+        row_count += rb.row_count();
+        print!("(Press (c) to print next rows)");
+        std::io::stdout().flush()?;
+
+        let mut input = String::new();
+        std::io::stdin().read_line(&mut input)?;
+        if input.trim() != "c" {
+            break;
+        }
+    }
+    Ok(format!("({} rows)", row_count))
 }
 
 async fn event_loop(df: Dataframe) {
