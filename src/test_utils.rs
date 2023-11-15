@@ -1,9 +1,5 @@
-use std::sync::Arc;
-
 use crate::{
     datatypes::{
-        column_vector::Vectors,
-        record_batch::RecordBatch,
         schema::{Field, Schema},
         types::{DataType, Value},
     },
@@ -12,11 +8,11 @@ use crate::{
 
 pub struct DatasinkBuilder {
     schema: Option<Schema>,
-    data: Option<Vec<Arc<Vectors>>>,
+    data: Option<Vec<Vec<Value>>>,
 }
 
 impl DatasinkBuilder {
-    pub fn new(schema: Option<Schema>, data: Option<Vec<Arc<Vectors>>>) -> DatasinkBuilder {
+    pub fn new(schema: Option<Schema>, data: Option<Vec<Vec<Value>>>) -> DatasinkBuilder {
         DatasinkBuilder { schema, data }
     }
 
@@ -69,8 +65,7 @@ impl DatasinkBuilder {
             })
         });
 
-        let arc_cols = RecordBatch::make_arc_cols(cols, self.schema.as_ref().unwrap());
-        self.data = Some(arc_cols);
+        self.data = Some(cols);
         self
     }
 

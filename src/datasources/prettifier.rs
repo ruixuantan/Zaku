@@ -1,9 +1,6 @@
 use std::vec;
 
-use crate::datatypes::{
-    column_vector::{Vector, Vectors},
-    schema::Schema,
-};
+use crate::datatypes::schema::Schema;
 
 use super::datasink::Datasink;
 
@@ -14,25 +11,23 @@ fn compute_cell_space(schema: &Schema, data: &Datasink) -> Vec<usize> {
 
     data.iter()
         .zip(size)
-        .map(|(col, curr_size)| match col.as_ref() {
-            Vectors::ColumnVector(vector) => vector
-                .iter()
-                .fold(curr_size, |acc, e| std::cmp::max(acc, e.to_string().len())),
-            Vectors::LiteralVector(vector) => {
-                let max_vector_string =
-                    vector
-                        .value()
-                        .to_string()
-                        .split('\n')
-                        .fold(String::new(), |acc, value| {
-                            if acc.len() > value.len() {
-                                acc
-                            } else {
-                                value.to_string()
-                            }
-                        });
-                std::cmp::max(curr_size, max_vector_string.len())
-            }
+        .map(|(col, curr_size)| {
+            col.iter()
+                .map(|val| {
+                    let max_val_string =
+                        val.to_string()
+                            .split('\n')
+                            .fold(String::new(), |acc, value| {
+                                if acc.len() > value.len() {
+                                    acc
+                                } else {
+                                    value.to_string()
+                                }
+                            });
+                    std::cmp::max(curr_size, max_val_string.len())
+                })
+                .max()
+                .unwrap()
         })
         .collect()
 }
@@ -84,8 +79,7 @@ pub fn prettify(data: &Datasink) -> String {
             .map(|j| {
                 let value = data
                     .get(&j)
-                    .expect("Index of record batch should not exceed size")
-                    .get_value(&i)
+                    .expect("Index of record batch should not exceed size")[i]
                     .to_string();
                 pad_value(value, cell_space[j])
             })
@@ -100,11 +94,8 @@ pub fn prettify(data: &Datasink) -> String {
 
 #[cfg(test)]
 mod test {
-    use std::sync::Arc;
-
     use super::{compute_cell_space, get_divider, pad_value, Datasink};
     use crate::datatypes::{
-        column_vector::{ColumnVector, Vectors},
         schema::{Field, Schema},
         types::{DataType, Value},
     };
@@ -119,26 +110,17 @@ mod test {
         let data = Datasink::new(
             schema.clone(),
             vec![
-                Arc::new(Vectors::ColumnVector(ColumnVector::new(
-                    DataType::Number,
-                    vec![Value::number("1"), Value::number("2"), Value::number("3")],
-                ))),
-                Arc::new(Vectors::ColumnVector(ColumnVector::new(
-                    DataType::Text,
-                    vec![
-                        Value::Text("Alice".to_string()),
-                        Value::Text("Bob".to_string()),
-                        Value::Text("Charlie".to_string()),
-                    ],
-                ))),
-                Arc::new(Vectors::ColumnVector(ColumnVector::new(
-                    DataType::Number,
-                    vec![
-                        Value::number("20"),
-                        Value::number("21"),
-                        Value::number("22"),
-                    ],
-                ))),
+                vec![Value::number("1"), Value::number("2"), Value::number("3")],
+                vec![
+                    Value::Text("Alice".to_string()),
+                    Value::Text("Bob".to_string()),
+                    Value::Text("Charlie".to_string()),
+                ],
+                vec![
+                    Value::number("20"),
+                    Value::number("21"),
+                    Value::number("22"),
+                ],
             ],
         );
         let cell_space = compute_cell_space(&schema, &data);

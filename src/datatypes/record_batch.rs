@@ -8,7 +8,7 @@ use super::{
     types::Value,
 };
 
-pub static VECTOR_SIZE: usize = 1024;
+pub static BATCH_SIZE: usize = 1024;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct RecordBatch {
@@ -87,18 +87,18 @@ impl RecordBatch {
     // Takes a vector of vectors (column-format) and converts it to record batches
     pub fn to_record_batch(cols: Vec<Vec<Value>>, schema: &Schema) -> Vec<RecordBatch> {
         let schema_len = schema.fields().len();
-        let num_batches = (cols.len() / VECTOR_SIZE) + 1;
+        let num_batches = (cols[0].len() / BATCH_SIZE) + 1;
         let mut seg_cols: Vec<Vec<Vec<Value>>> = (0..num_batches)
             .map(|_| {
                 (0..schema_len)
-                    .map(|_| Vec::with_capacity(VECTOR_SIZE))
+                    .map(|_| Vec::with_capacity(BATCH_SIZE))
                     .collect()
             })
             .collect();
 
         for (i, col) in cols.iter().enumerate() {
             for (j, val) in col.iter().enumerate() {
-                let batch_no = j / VECTOR_SIZE;
+                let batch_no = j / BATCH_SIZE;
                 seg_cols[batch_no][i].push(val.clone());
             }
         }

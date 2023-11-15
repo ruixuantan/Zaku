@@ -181,13 +181,13 @@ fn create_df(select: &SelectStmt, dataframe: Dataframe) -> Result<Dataframe, Zak
 
     // no group by clause and no aggregate functions in SELECT
     if group_by_exprs.is_empty() && aggregates.is_empty() {
-        if !projections.is_empty() {
-            df = df.projection(projections)?;
-        }
-
         if !select.order_by.is_empty() {
             let (order_by_exprs, asc) = parse_order_by(&select.order_by)?;
             df = df.sort(order_by_exprs, asc)?;
+        }
+
+        if !projections.is_empty() {
+            df = df.projection(projections)?;
         }
 
         if let Some(limit) = select.limit {
@@ -204,12 +204,12 @@ fn create_df(select: &SelectStmt, dataframe: Dataframe) -> Result<Dataframe, Zak
         df = df.filter(have?)?;
     }
 
-    df = df.projection(aggr_projections)?;
-
     if !select.order_by.is_empty() {
         let (order_by_exprs, asc) = parse_order_by(&select.order_by)?;
         df = df.sort(order_by_exprs, asc)?;
     }
+
+    df = df.projection(aggr_projections)?;
 
     if let Some(limit) = select.limit {
         df = df.limit(limit)?;

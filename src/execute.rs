@@ -1,11 +1,10 @@
-use std::{sync::Arc, vec};
+use std::vec;
 
 use futures_async_stream::for_await;
 
 use crate::{
     datasources::datasink::Datasink,
     datatypes::{
-        column_vector::{LiteralVector, Vectors},
         schema::{Field, Schema},
         types::{DataType, Value},
     },
@@ -27,11 +26,7 @@ async fn execute_select(df: Dataframe) -> Result<Datasink, ZakuError> {
 fn execute_explain(df: Dataframe) -> Result<Datasink, ZakuError> {
     let plan = df.logical_plan();
     let plan_str = format!("{}", plan);
-    let col = vec![Arc::new(Vectors::LiteralVector(LiteralVector::new(
-        DataType::Text,
-        Value::Text(plan_str),
-        1,
-    )))];
+    let col = vec![vec![Value::Text(plan_str)]];
     let schema = Schema::new(vec![Field::new("Query Plan".to_string(), DataType::Text)]);
     Ok(Datasink::new(schema, col))
 }

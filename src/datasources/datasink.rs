@@ -1,12 +1,7 @@
 use csv::Writer;
-use std::sync::Arc;
 
 use crate::{
-    datatypes::{
-        column_vector::{Vector, Vectors},
-        record_batch::RecordBatch,
-        schema::Schema,
-    },
+    datatypes::{column_vector::Vector, record_batch::RecordBatch, schema::Schema, types::Value},
     error::ZakuError,
 };
 
@@ -15,11 +10,11 @@ use super::prettifier::prettify;
 #[derive(Debug, Clone, PartialEq)]
 pub struct Datasink {
     schema: Schema,
-    data: Vec<Arc<Vectors>>,
+    data: Vec<Vec<Value>>,
 }
 
 impl Datasink {
-    pub fn new(schema: Schema, data: Vec<Arc<Vectors>>) -> Datasink {
+    pub fn new(schema: Schema, data: Vec<Vec<Value>>) -> Datasink {
         Datasink { schema, data }
     }
 
@@ -27,12 +22,12 @@ impl Datasink {
         &self.schema
     }
 
-    pub fn data(&self) -> &Vec<Arc<Vectors>> {
+    pub fn data(&self) -> &Vec<Vec<Value>> {
         &self.data
     }
 
     pub fn row_count(&self) -> usize {
-        self.data[0].size()
+        self.data[0].len()
     }
 
     pub fn column_count(&self) -> usize {
@@ -41,14 +36,16 @@ impl Datasink {
 
     pub fn from_record_batches(record_batches: Vec<RecordBatch>) -> Datasink {
         let schema = record_batches[0].schema().clone();
-        let data = record_batches
-            .into_iter()
-            .flat_map(|rb| rb.columns().clone())
-            .collect();
+        let mut data: Vec<Vec<Value>> = schema.fields().iter().map(|_| vec![]).collect();
+        record_batches.into_iter().for_each(|rb| {
+            rb.columns().iter().enumerate().for_each(|(i, col)| {
+                data[i].extend(col.iter().cloned());
+            })
+        });
         Datasink::new(schema, data)
     }
 
-    pub fn get(&self, index: &usize) -> Result<Arc<Vectors>, ZakuError> {
+    pub fn get(&self, index: &usize) -> Result<Vec<Value>, ZakuError> {
         if index >= &self.column_count() {
             return Err(ZakuError::new("Index out of bounds"));
         }
@@ -70,7 +67,7 @@ impl Datasink {
         (0..self.row_count()).for_each(|i| {
             let row = self
                 .iter()
-                .map(|col| col.get_value(&i).to_string())
+                .map(|col| col[i].to_string())
                 .collect::<Vec<String>>();
             file.write_record(row).unwrap();
         });
@@ -86,7 +83,7 @@ pub struct DatasinkIterator<'a> {
 }
 
 impl<'a> Iterator for DatasinkIterator<'a> {
-    type Item = &'a Arc<Vectors>;
+    type Item = &'a Vec<Value>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.index >= self.ds.column_count() {
