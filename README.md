@@ -1,17 +1,30 @@
 # Zaku
 
-A simple SQL query engine on CSV files, built on Rust.
+A simple SQL query engine on singular CSV files, built with Rust.
 
-## Requirements
-* cargo 1.73.0
+## Features
+* `SELECT` queries with `WHERE`, `LIMIT`, `GROUP BY`, `HAVING`, `ORDER BY`
+* `EXPLAIN` statements
+* `COPY TO` csv file commands (but not `COPY FROM`)
 
-## Usage
-Use `cargo build` to build the project, and `cargo run` to run the project.
-Unit tests can be run with `cargo test`.
+## Setting up
+Install rust nightly and pre-commit.
+Run `pre-commit install` prior to any commits.
 
-Run `cargo clippy --all-targets --all-features -- -D warnings` for linting.
+### Versions used
+* cargo 1.75.0-nightly
+* pre-commit 3.2.2
 
-To start the query engine with printing of physical plans, run
+### Usage
+* `make build` to build the project in debug mode
+* `make test` to run the tests
+* `make lint` to lint the code
+* `make fmt` to format the code
+* `make run` to run the cli app with the `resources/test.csv` file
+* `make release` to build the project in release mode
+* `make cli` to run the cli app with the `resources/test.csv` file in release mode
+
+To start the query engine with your choice of csv file, run
 ```bash
-./target/debug/zaku -e <path-to-csv-file>
+./target/debug/cli <path-to-csv-file>
 ```

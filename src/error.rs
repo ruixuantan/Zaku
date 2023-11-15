@@ -12,6 +12,8 @@ pub enum ZakuError {
     ParseIntError(#[from] std::num::ParseIntError),
     #[error("Parse bigdecimal error: {0}")]
     ParseBigDecimalError(#[from] bigdecimal::ParseBigDecimalError),
+    #[error("Parse date error: {0}")]
+    ParseDateError(#[from] chrono::ParseError),
     #[error("ZakuError: {0}")]
     InternalError(String),
 }

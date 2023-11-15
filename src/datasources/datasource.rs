@@ -50,19 +50,17 @@ impl Datasource {
             .map(|h| Field::new(h.to_string(), DataType::default()))
             .collect();
 
-        let mut processed = fields.iter().map(|_| false).collect::<Vec<bool>>();
+        let mut datatypes: Vec<Option<DataType>> = fields.iter().map(|_| None).collect();
+
         for record in rdr.records() {
             let r = record?;
             r.iter().enumerate().for_each(|(i, field)| {
-                if !processed[i] && !field.is_empty() {
+                if !field.is_empty() && datatypes[i] != Some(DataType::Text) {
                     let datatype = DataType::get_type_from_string_val(field);
                     fields[i].set_datatype(datatype);
-                    processed[i] = true;
+                    datatypes[i] = Some(datatype);
                 }
             });
-            if processed.iter().all(|p| *p) {
-                break;
-            }
         }
         Ok(Schema::new(fields))
     }

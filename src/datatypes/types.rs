@@ -5,8 +5,9 @@ use std::{
 
 use bigdecimal::BigDecimal;
 use chrono::NaiveDate;
-use dateparser::parse;
 use std::str::FromStr;
+
+use crate::ZakuError;
 
 #[derive(Clone, Copy, Debug, PartialEq, Default)]
 pub enum DataType {
@@ -26,9 +27,13 @@ pub enum Value {
     Null,
 }
 
+pub fn parse_iso_date_from_str(s: &str) -> Result<NaiveDate, ZakuError> {
+    Ok(NaiveDate::parse_from_str(s, "%Y-%m-%d")?)
+}
+
 impl DataType {
     pub fn get_type_from_string_val(val: &str) -> DataType {
-        if parse(val).is_ok() {
+        if parse_iso_date_from_str(val).is_ok() {
             return DataType::Date;
         }
         if BigDecimal::from_str(val).is_ok() {
@@ -47,7 +52,7 @@ impl Value {
     }
 
     pub fn date(val: &str) -> Value {
-        Value::Date(parse(val).expect("Val should be a date value").date_naive())
+        Value::Date(parse_iso_date_from_str(val).expect("Val should be a date value"))
     }
 
     pub fn get_value_from_string_val(val: &str, datatype: &DataType) -> Value {
@@ -56,16 +61,16 @@ impl Value {
         }
         match datatype {
             DataType::Number => Value::Number(
-                BigDecimal::from_str(val).unwrap_or_else(|_| panic!("Expected float, got {val}")),
+                BigDecimal::from_str(val.replace(',', "").as_str())
+                    .unwrap_or_else(|_| panic!("Expected float, got {val}")),
             ),
             DataType::Date => Value::Date(
-                parse(val)
-                    .unwrap_or_else(|_| panic!("Expected date, got {val}"))
-                    .date_naive(),
+                parse_iso_date_from_str(val)
+                    .unwrap_or_else(|_| panic!("Expected date, got '{val}'")),
             ),
             DataType::Boolean => Value::Boolean(
                 val.parse::<bool>()
-                    .unwrap_or_else(|_| panic!("Expected boolean, got {val}")),
+                    .unwrap_or_else(|_| panic!("Expected boolean, got '{val}'")),
             ),
             DataType::Text => Value::Text(val.to_string()),
         }

@@ -1,6 +1,7 @@
 use std::{ops::Deref, str::FromStr};
 
 use crate::{
+    datatypes::types::parse_iso_date_from_str,
     error::ZakuError,
     logical_plans::{
         aggregate_expr::AggregateExprs,
@@ -105,8 +106,8 @@ fn parse_expr(expr: &Expr) -> Result<LogicalExprs, ZakuError> {
             sqlparser::ast::Value::Number(n, _) => {
                 Ok(LogicalExprs::LiteralNumber(BigDecimal::from_str(n)?))
             }
-            sqlparser::ast::Value::SingleQuotedString(s) => match dateparser::parse(s) {
-                Ok(date) => Ok(LogicalExprs::LiteralDate(date.date_naive())),
+            sqlparser::ast::Value::SingleQuotedString(s) => match parse_iso_date_from_str(s) {
+                Ok(date) => Ok(LogicalExprs::LiteralDate(date)),
                 Err(_) => Ok(LogicalExprs::LiteralText(s.clone())),
             },
             _ => Err(ZakuError::new("Unsupported value")),
