@@ -70,17 +70,22 @@ impl Default for Sum {
 
 impl Accumulator for Sum {
     fn accumulate(&mut self, value: &Value) -> Result<(), ZakuError> {
+        let err = Err(ZakuError::new("SUM only supports numeric values"));
         match &self.value {
             Some(v) => {
                 let new_value = match value {
                     Value::Number(_) => Some(v.add(value)),
                     Value::Null => Some(v.add(&Value::number("0"))),
-                    _ => return Err(ZakuError::new("SUM only supports numeric values")),
+                    _ => return err,
                 };
                 self.value = new_value;
             }
             None => {
-                self.value = Some(value.clone());
+                match value {
+                    Value::Number(_) => self.value = Some(value.clone()),
+                    Value::Null => self.value = Some(Value::number("0")),
+                    _ => return err,
+                };
             }
         }
         Ok(())
@@ -223,17 +228,22 @@ impl Default for Avg {
 
 impl Accumulator for Avg {
     fn accumulate(&mut self, value: &Value) -> Result<(), ZakuError> {
+        let err = Err(ZakuError::new("AVG only supports numeric values"));
         match &self.sum {
             Some(v) => {
                 let new_value = match value {
                     Value::Number(_) => Some(v.add(value)),
                     Value::Null => Some(v.add(&Value::number("0"))),
-                    _ => return Err(ZakuError::new("AVG only supports numeric values")),
+                    _ => return err,
                 };
                 self.sum = new_value;
             }
             None => {
-                self.sum = Some(value.clone());
+                match value {
+                    Value::Number(_) => self.sum = Some(value.clone()),
+                    Value::Null => self.sum = Some(Value::number("0")),
+                    _ => return err,
+                };
             }
         }
         self.count += 1;

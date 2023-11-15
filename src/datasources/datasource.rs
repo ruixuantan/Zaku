@@ -50,13 +50,20 @@ impl Datasource {
             .map(|h| Field::new(h.to_string(), DataType::default()))
             .collect();
 
-        rdr.records().take(1).try_for_each(|r| {
-            r?.iter().enumerate().for_each(|(i, field)| {
-                let datatype = DataType::get_type_from_string_val(field);
-                fields[i].set_datatype(datatype);
+        let mut processed = fields.iter().map(|_| false).collect::<Vec<bool>>();
+        for record in rdr.records() {
+            let r = record?;
+            r.iter().enumerate().for_each(|(i, field)| {
+                if !processed[i] && !field.is_empty() {
+                    let datatype = DataType::get_type_from_string_val(field);
+                    fields[i].set_datatype(datatype);
+                    processed[i] = true;
+                }
             });
-            Ok::<(), ZakuError>(())
-        })?;
+            if processed.iter().all(|p| *p) {
+                break;
+            }
+        }
         Ok(Schema::new(fields))
     }
 
