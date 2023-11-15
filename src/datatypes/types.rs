@@ -18,19 +18,6 @@ pub enum DataType {
     Date,
 }
 
-#[derive(Clone, Debug, PartialEq, PartialOrd, Ord, Eq, Hash)]
-pub enum Value {
-    Number(BigDecimal),
-    Text(String),
-    Boolean(bool),
-    Date(NaiveDate),
-    Null,
-}
-
-pub fn parse_iso_date_from_str(s: &str) -> Result<NaiveDate, ZakuError> {
-    Ok(NaiveDate::parse_from_str(s, "%Y-%m-%d")?)
-}
-
 impl DataType {
     pub fn get_type_from_string_val(val: &str) -> DataType {
         if parse_iso_date_from_str(val).is_ok() {
@@ -44,6 +31,30 @@ impl DataType {
         }
         DataType::Text
     }
+}
+
+impl Display for DataType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DataType::Text => write!(f, "text"),
+            DataType::Boolean => write!(f, "boolean"),
+            DataType::Number => write!(f, "number"),
+            DataType::Date => write!(f, "date"),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, PartialOrd, Ord, Eq, Hash)]
+pub enum Value {
+    Number(BigDecimal),
+    Text(String),
+    Boolean(bool),
+    Date(NaiveDate),
+    Null,
+}
+
+pub fn parse_iso_date_from_str(s: &str) -> Result<NaiveDate, ZakuError> {
+    Ok(NaiveDate::parse_from_str(s, "%Y-%m-%d")?)
 }
 
 impl Value {

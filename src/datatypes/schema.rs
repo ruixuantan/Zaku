@@ -1,3 +1,5 @@
+use std::fmt::{Display, Formatter};
+
 use super::types::DataType;
 use crate::error::ZakuError;
 
@@ -95,6 +97,16 @@ impl Schema {
 
     pub fn as_header(&self) -> Vec<String> {
         self.fields.iter().map(|f| f.name().clone()).collect()
+    }
+}
+
+impl Display for Schema {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let mut schema = vec![];
+        for field in &self.fields {
+            schema.push(format!("{}({})", field.name(), field.datatype()));
+        }
+        write!(f, "{}", schema.join(" | "))
     }
 }
 

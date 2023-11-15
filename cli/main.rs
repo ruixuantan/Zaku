@@ -26,6 +26,7 @@ async fn execute_sql(sql: &str, df: Dataframe) -> Result<String, ZakuError> {
 }
 
 async fn event_loop(df: Dataframe) {
+    println!("Schema read as: {}", df.schema());
     loop {
         let input = get_input();
         match input {
