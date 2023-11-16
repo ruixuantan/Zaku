@@ -1,6 +1,6 @@
 use enum_dispatch::enum_dispatch;
 use futures_async_stream::try_stream;
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, fmt::Display, sync::Arc};
 
 use crate::{
     datasources::datasource::Datasource,
@@ -24,6 +24,8 @@ pub trait PhysicalPlan {
     fn schema(&self) -> Schema;
 
     fn children(&self) -> Vec<PhysicalPlans>;
+
+    fn to_string(&self) -> String;
 }
 
 #[derive(Clone)]
@@ -53,6 +55,23 @@ impl PhysicalPlans {
             yield res?
         }
     }
+
+    fn format(plan: &PhysicalPlans, indent: usize) -> String {
+        let mut s = String::new();
+        (0..indent).for_each(|_| s.push_str("  "));
+        s.push_str(PhysicalPlan::to_string(plan).as_str());
+        s.push('\n');
+        plan.children().iter().for_each(|p| {
+            s.push_str(PhysicalPlans::format(p, indent + 1).as_str());
+        });
+        s
+    }
+}
+
+impl Display for PhysicalPlans {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", PhysicalPlans::format(self, 0))
+    }
 }
 
 #[derive(Clone)]
@@ -68,9 +87,7 @@ impl ScanExec {
             projection,
         }
     }
-}
 
-impl ScanExec {
     #[try_stream(boxed, ok = RecordBatch, error = ZakuError)]
     pub async fn execute(&self) {
         for rb in self.datasource.get_data() {
@@ -86,6 +103,18 @@ impl PhysicalPlan for ScanExec {
 
     fn children(&self) -> Vec<PhysicalPlans> {
         Vec::new()
+    }
+
+    fn to_string(&self) -> String {
+        if self.projection.is_empty() {
+            format!("Scan: {} | None", self.datasource.path())
+        } else {
+            format!(
+                "Scan: {} | {}",
+                self.datasource.path(),
+                self.projection.join(", ")
+            )
+        }
     }
 }
 
@@ -104,9 +133,7 @@ impl ProjectionExec {
             expr,
         }
     }
-}
 
-impl ProjectionExec {
     #[try_stream(boxed, ok = RecordBatch, error = ZakuError)]
     pub async fn execute(&self) {
         #[for_await]
@@ -126,6 +153,17 @@ impl PhysicalPlan for ProjectionExec {
     fn children(&self) -> Vec<PhysicalPlans> {
         vec![*self.input.clone()]
     }
+
+    fn to_string(&self) -> String {
+        format!(
+            "Projection: {}",
+            self.expr
+                .iter()
+                .map(|e| format!("{}", e))
+                .collect::<Vec<String>>()
+                .join(", ")
+        )
+    }
 }
 
 #[derive(Clone)]
@@ -143,9 +181,7 @@ impl FilterExec {
             expr,
         }
     }
-}
 
-impl FilterExec {
     #[try_stream(boxed, ok = RecordBatch, error = ZakuError)]
     pub async fn execute(&self) {
         #[for_await]
@@ -178,6 +214,10 @@ impl PhysicalPlan for FilterExec {
     fn children(&self) -> Vec<PhysicalPlans> {
         vec![*self.input.clone()]
     }
+
+    fn to_string(&self) -> String {
+        format!("Filter: {}", self.expr)
+    }
 }
 
 #[derive(Clone)]
@@ -195,9 +235,7 @@ impl LimitExec {
             limit,
         }
     }
-}
 
-impl LimitExec {
     #[try_stream(boxed, ok = RecordBatch, error = ZakuError)]
     pub async fn execute(&self) {
         if self.limit == 0 {
@@ -250,6 +288,10 @@ impl PhysicalPlan for LimitExec {
 
     fn children(&self) -> Vec<PhysicalPlans> {
         vec![*self.input.clone()]
+    }
+
+    fn to_string(&self) -> String {
+        format!("Limit: {}", self.limit)
     }
 }
 
@@ -334,6 +376,24 @@ impl PhysicalPlan for SortExec {
     fn children(&self) -> Vec<PhysicalPlans> {
         vec![*self.input.clone()]
     }
+
+    fn to_string(&self) -> String {
+        format!(
+            "Sort: keys={}",
+            self.sort_keys
+                .iter()
+                .enumerate()
+                .map(|(i, k)| {
+                    let mut asc = "asc";
+                    if !self.asc[i] {
+                        asc = "desc";
+                    }
+                    format!("{} {}", k, asc)
+                })
+                .collect::<Vec<String>>()
+                .join(", ")
+        )
+    }
 }
 
 #[derive(Clone)]
@@ -358,9 +418,7 @@ impl HashAggregateExec {
             schema,
         }
     }
-}
 
-impl HashAggregateExec {
     #[try_stream(boxed, ok = RecordBatch, error = ZakuError)]
     pub async fn execute(&self) {
         let mut aggregator_map: HashMap<Vec<Value>, Vec<Accumulators>> = HashMap::new();
@@ -412,6 +470,30 @@ impl HashAggregateExec {
             yield rb
         }
     }
+
+    fn group_expr_str(&self) -> String {
+        if self.group_expr.is_empty() {
+            "None".to_string()
+        } else {
+            self.group_expr
+                .iter()
+                .map(|e| e.to_string())
+                .collect::<Vec<String>>()
+                .join(", ")
+        }
+    }
+
+    fn aggr_expr_str(&self) -> String {
+        if self.aggr_expr.is_empty() {
+            "None".to_string()
+        } else {
+            self.aggr_expr
+                .iter()
+                .map(|e| e.to_string())
+                .collect::<Vec<String>>()
+                .join(", ")
+        }
+    }
 }
 
 impl PhysicalPlan for HashAggregateExec {
@@ -421,5 +503,13 @@ impl PhysicalPlan for HashAggregateExec {
 
     fn children(&self) -> Vec<PhysicalPlans> {
         vec![*self.input.clone()]
+    }
+
+    fn to_string(&self) -> String {
+        format!(
+            "HashAggregate: group_expr={}, aggr_expr={}",
+            self.group_expr_str(),
+            self.aggr_expr_str()
+        )
     }
 }

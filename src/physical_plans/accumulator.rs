@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use enum_dispatch::enum_dispatch;
 
 use crate::{datatypes::types::Value, ZakuError};
@@ -32,6 +34,18 @@ impl AggregateExpressions {
             AggregateExpressions::Min(_) => Accumulators::Min(Min::new()),
             AggregateExpressions::Max(_) => Accumulators::Max(Max::new()),
             AggregateExpressions::Avg(_) => Accumulators::Avg(Avg::new()),
+        }
+    }
+}
+
+impl Display for AggregateExpressions {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AggregateExpressions::Sum(e) => write!(f, "sum({})", e),
+            AggregateExpressions::Count(e) => write!(f, "count({})", e),
+            AggregateExpressions::Min(e) => write!(f, "min({})", e),
+            AggregateExpressions::Max(e) => write!(f, "max({})", e),
+            AggregateExpressions::Avg(e) => write!(f, "avg({})", e),
         }
     }
 }

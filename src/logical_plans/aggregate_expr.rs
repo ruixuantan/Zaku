@@ -81,11 +81,11 @@ impl AggregateExprs {
 impl Display for AggregateExprs {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let _ = match self {
-            AggregateExprs::Count(expr) => write!(f, "COUNT({})", expr),
-            AggregateExprs::Sum(expr) => write!(f, "SUM({})", expr),
-            AggregateExprs::Avg(expr) => write!(f, "AVG({})", expr),
-            AggregateExprs::Min(expr) => write!(f, "MIN({})", expr),
-            AggregateExprs::Max(expr) => write!(f, "MAX({})", expr),
+            AggregateExprs::Count(expr) => write!(f, "count({})", expr),
+            AggregateExprs::Sum(expr) => write!(f, "sum({})", expr),
+            AggregateExprs::Avg(expr) => write!(f, "avg({})", expr),
+            AggregateExprs::Min(expr) => write!(f, "min({})", expr),
+            AggregateExprs::Max(expr) => write!(f, "max({})", expr),
         };
         Ok(())
     }

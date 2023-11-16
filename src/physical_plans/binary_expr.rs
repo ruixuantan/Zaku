@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{fmt::Display, sync::Arc};
 
 use crate::{
     datatypes::{
@@ -6,7 +6,7 @@ use crate::{
         record_batch::RecordBatch,
         types::{DataType, Value},
     },
-    sql::operators::{BooleanOp, MathOp},
+    sql::operators::{BinaryOp, BooleanOp, MathOp},
 };
 
 use super::physical_expr::{PhysicalExpr, PhysicalExprs};
@@ -34,6 +34,14 @@ impl BooleanExpr {
             BooleanOp::Lt => l.lt(r),
             BooleanOp::Lte => l.lte(r),
         }
+    }
+}
+
+impl Display for BooleanExpr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let l = self.l.to_string();
+        let r = self.r.to_string();
+        write!(f, "{} {} {}", l, self.op.to_string(), r)
     }
 }
 
@@ -77,6 +85,14 @@ impl MathExpr {
             MathOp::Div => l.div(r),
             MathOp::Mod => l.modulo(r),
         }
+    }
+}
+
+impl Display for MathExpr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let l = self.l.to_string();
+        let r = self.r.to_string();
+        write!(f, "{} {} {}", l, self.op.to_string(), r)
     }
 }
 

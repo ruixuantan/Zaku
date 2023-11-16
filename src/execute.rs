@@ -28,7 +28,7 @@ async fn execute_select(df: Dataframe) -> Result<Datasink, ZakuError> {
 }
 
 fn execute_explain(df: Dataframe) -> Result<Datasink, ZakuError> {
-    let plan = df.logical_plan();
+    let plan = df.logical_plan().to_physical_plan()?;
     let plan_str = format!("{}", plan);
     let col = vec![Arc::new(Vectors::ColumnVector(ColumnVector::new(
         DataType::Text,

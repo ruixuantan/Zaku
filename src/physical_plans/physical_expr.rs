@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{fmt::Display, sync::Arc};
 
 use bigdecimal::BigDecimal;
 use chrono::NaiveDate;
@@ -43,6 +43,20 @@ impl PhysicalExpr for PhysicalExprs {
             PhysicalExprs::LiteralDate(value) => create_literal(Value::Date(*value), size),
             PhysicalExprs::BooleanExpr(expr) => expr.evaluate(batch),
             PhysicalExprs::MathExpr(expr) => expr.evaluate(batch),
+        }
+    }
+}
+
+impl Display for PhysicalExprs {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PhysicalExprs::Column(index) => write!(f, "#{}", index),
+            PhysicalExprs::LiteralText(value) => write!(f, "{}", value),
+            PhysicalExprs::LiteralBoolean(value) => write!(f, "{}", value),
+            PhysicalExprs::LiteralNumber(value) => write!(f, "{}", value),
+            PhysicalExprs::LiteralDate(value) => write!(f, "{}", value),
+            PhysicalExprs::BooleanExpr(expr) => write!(f, "{}", expr),
+            PhysicalExprs::MathExpr(expr) => write!(f, "{}", expr),
         }
     }
 }
