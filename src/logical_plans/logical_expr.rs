@@ -22,7 +22,7 @@ pub trait LogicalExpr {
     fn to_physical_expr(&self, input: &LogicalPlans) -> Result<PhysicalExprs, ZakuError>;
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum LogicalExprs {
     Column(Column),
     ColumnIndex(usize),
@@ -108,7 +108,7 @@ impl Display for LogicalExprs {
         write!(f, "{}", string)
     }
 }
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Column {
     name: String,
 }
@@ -132,7 +132,7 @@ impl Column {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct AliasExpr {
     expr: Box<LogicalExprs>,
     alias: String,

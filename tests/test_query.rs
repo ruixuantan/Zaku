@@ -77,6 +77,25 @@ async fn filter_query() {
 }
 
 #[tokio::test]
+async fn filter_no_records_query() {
+    let sql = "SELECT * FROM test WHERE price < 0";
+    let expected = DatasinkBuilder::default()
+        .add_schema(
+            vec![
+                "id",
+                "product_name",
+                "is_available",
+                "price",
+                "quantity",
+                "updated_on",
+            ],
+            vec!["num", "text", "bool", "num", "num", "date"],
+        )
+        .build();
+    assert_eq!(run(sql).await.unwrap(), expected);
+}
+
+#[tokio::test]
 async fn limit_query() {
     let sql = "SELECT * FROM test LIMIT 2";
     let expected = DatasinkBuilder::default()
@@ -95,6 +114,25 @@ async fn limit_query() {
             vec!["1", "toothbrush", "true", "5.00", "100", "2023-06-06"],
             vec!["2", "toothpaste", "true", "10.00", "50", "2023-01-01"],
         ])
+        .build();
+    assert_eq!(run(sql).await.unwrap(), expected);
+}
+
+#[tokio::test]
+async fn limit_zero_query() {
+    let sql = "SELECT * FROM test LIMIT 0";
+    let expected = DatasinkBuilder::default()
+        .add_schema(
+            vec![
+                "id",
+                "product_name",
+                "is_available",
+                "price",
+                "quantity",
+                "updated_on",
+            ],
+            vec!["num", "text", "bool", "num", "num", "date"],
+        )
         .build();
     assert_eq!(run(sql).await.unwrap(), expected);
 }
@@ -130,11 +168,34 @@ async fn aggregate_group_by_query() {
 }
 
 #[tokio::test]
+async fn group_by_wildcard_query() {
+    let sql = "SELECT * FROM test GROUP BY is_available";
+    assert!(run(sql).await.is_err());
+}
+
+#[tokio::test]
+async fn aggregate_in_where_query() {
+    let sql = "SELECT COUNT(*) AS count FROM test WHERE COUNT(*) > 2";
+    assert!(run(sql).await.is_err());
+}
+
+#[tokio::test]
 async fn having_query() {
     let sql = "SELECT COUNT(id) AS count FROM test GROUP BY is_available HAVING COUNT(id) > 2 AND is_available = true";
     let expected = DatasinkBuilder::default()
         .add_schema(vec!["count"], vec!["num"])
         .add_data(vec![vec!["4"]])
+        .build();
+    assert_eq!(run(sql).await.unwrap(), expected);
+}
+
+#[tokio::test]
+async fn having_aggregate_query() {
+    let sql =
+        "SELECT COUNT(id), SUM(price) FROM test GROUP BY is_available HAVING MIN(quantity) > 0";
+    let expected = DatasinkBuilder::default()
+        .add_schema(vec!["count", "sum"], vec!["num", "num"])
+        .add_data(vec![vec!["4", "50.50"]])
         .build();
     assert_eq!(run(sql).await.unwrap(), expected);
 }

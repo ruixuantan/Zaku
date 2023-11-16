@@ -12,11 +12,8 @@ pub struct Datasink {
 }
 
 impl Datasink {
-    pub fn new(data: Vec<RecordBatch>) -> Datasink {
-        Datasink {
-            schema: data[0].schema().clone(),
-            data,
-        }
+    pub fn new(schema: Schema, data: Vec<RecordBatch>) -> Datasink {
+        Datasink { schema, data }
     }
 
     pub fn num_batches(&self) -> usize {

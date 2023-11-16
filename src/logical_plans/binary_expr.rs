@@ -16,7 +16,7 @@ pub trait BinaryExpr {
     fn to_string(&self) -> String;
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum BinaryExprs {
     And(BooleanExpr),
     Or(BooleanExpr),
@@ -166,7 +166,7 @@ impl LogicalExpr for BinaryExprs {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct BooleanExpr {
     l: Box<LogicalExprs>,
     op: BooleanOp,
@@ -204,7 +204,7 @@ impl LogicalExpr for BooleanExpr {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct MathExpr {
     l: Box<LogicalExprs>,
     op: MathOp,

@@ -12,7 +12,7 @@ pub trait BinaryOp {
     fn to_string(&self) -> String;
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum BooleanOp {
     And,
     Or,
@@ -66,7 +66,7 @@ impl BinaryOp for BooleanOp {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum MathOp {
     Add,
     Sub,

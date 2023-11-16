@@ -7,7 +7,7 @@ use super::{
 use crate::{datatypes::schema::Field, ZakuError};
 use crate::{datatypes::types::DataType, physical_plans::accumulator::AggregateExpressions};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum AggregateExprs {
     Count(Box<LogicalExprs>),
     Sum(Box<LogicalExprs>),
@@ -18,26 +18,29 @@ pub enum AggregateExprs {
 
 impl AggregateExprs {
     pub fn from_str(func: &str, func_arg: LogicalExprs) -> Result<AggregateExprs, ZakuError> {
-        match func.to_uppercase().as_str() {
-            "COUNT" => Ok(AggregateExprs::Count(Box::new(func_arg))),
-            "SUM" => Ok(AggregateExprs::Sum(Box::new(func_arg))),
-            "AVG" => Ok(AggregateExprs::Avg(Box::new(func_arg))),
-            "MIN" => Ok(AggregateExprs::Min(Box::new(func_arg))),
-            "MAX" => Ok(AggregateExprs::Max(Box::new(func_arg))),
+        match func.to_lowercase().as_str() {
+            "count" => Ok(AggregateExprs::Count(Box::new(func_arg))),
+            "sum" => Ok(AggregateExprs::Sum(Box::new(func_arg))),
+            "avg" => Ok(AggregateExprs::Avg(Box::new(func_arg))),
+            "min" => Ok(AggregateExprs::Min(Box::new(func_arg))),
+            "max" => Ok(AggregateExprs::Max(Box::new(func_arg))),
             _ => Err(ZakuError::new("Unknown aggregate function")),
         }
     }
 
-    pub fn to_field(&self, plan: &LogicalPlans) -> Result<Field, ZakuError> {
+    pub fn to_field(&self, input: &LogicalPlans) -> Result<Field, ZakuError> {
         match self {
-            AggregateExprs::Count(expr) => Ok(Field::new(
-                expr.to_field(plan)?.name().clone(),
-                DataType::Number,
+            AggregateExprs::Count(_) => Ok(Field::new("count".to_string(), DataType::Number)),
+            AggregateExprs::Sum(_) => Ok(Field::new("sum".to_string(), DataType::Number)),
+            AggregateExprs::Avg(_) => Ok(Field::new("avg".to_string(), DataType::Number)),
+            AggregateExprs::Min(expr) => Ok(Field::new(
+                "min".to_string(),
+                *expr.to_field(input)?.datatype(),
             )),
-            AggregateExprs::Sum(expr) => expr.to_field(plan),
-            AggregateExprs::Avg(expr) => expr.to_field(plan),
-            AggregateExprs::Min(expr) => expr.to_field(plan),
-            AggregateExprs::Max(expr) => expr.to_field(plan),
+            AggregateExprs::Max(expr) => Ok(Field::new(
+                "max".to_string(),
+                *expr.to_field(input)?.datatype(),
+            )),
         }
     }
 

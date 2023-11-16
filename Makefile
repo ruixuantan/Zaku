@@ -2,7 +2,7 @@ release:
 	cargo build --release
 
 test:
-	cargo test
+	cargo test -- --nocapture
 
 lint:
 	cargo clippy --all-targets --all-features -- -D warnings

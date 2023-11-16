@@ -16,13 +16,15 @@ use crate::{
 };
 
 async fn execute_select(df: Dataframe) -> Result<Datasink, ZakuError> {
-    let plan = df.logical_plan().to_physical_plan()?;
+    let plan = df.logical_plan();
+    let schema = plan.schema();
+    let physical_plan = plan.to_physical_plan()?;
     let mut data = vec![];
     #[for_await]
-    for rb in plan.execute() {
+    for rb in physical_plan.execute() {
         data.push(rb?);
     }
-    Ok(Datasink::new(data))
+    Ok(Datasink::new(schema, data))
 }
 
 fn execute_explain(df: Dataframe) -> Result<Datasink, ZakuError> {
@@ -33,17 +35,22 @@ fn execute_explain(df: Dataframe) -> Result<Datasink, ZakuError> {
         vec![Value::Text(plan_str)],
     )))];
     let schema = Schema::new(vec![Field::new("Query Plan".to_string(), DataType::Text)]);
-    Ok(Datasink::new(vec![RecordBatch::new(schema, col)]))
+    Ok(Datasink::new(
+        schema.clone(),
+        vec![RecordBatch::new(schema, col)],
+    ))
 }
 
 async fn execute_copy(df: Dataframe, path: &String) -> Result<Datasink, ZakuError> {
-    let plan = df.logical_plan().to_physical_plan()?;
+    let plan = df.logical_plan();
+    let schema = plan.schema();
+    let physical_plan = plan.to_physical_plan()?;
     let mut data = vec![];
     #[for_await]
-    for rb in plan.execute() {
+    for rb in physical_plan.execute() {
         data.push(rb?);
     }
-    let ds = Datasink::new(data);
+    let ds = Datasink::new(schema, data);
     let _ = ds.to_csv(path);
     Ok(ds)
 }

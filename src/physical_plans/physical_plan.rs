@@ -200,6 +200,19 @@ impl LimitExec {
 impl LimitExec {
     #[try_stream(boxed, ok = RecordBatch, error = ZakuError)]
     pub async fn execute(&self) {
+        if self.limit == 0 {
+            let cols = self
+                .schema
+                .fields()
+                .iter()
+                .map(|f| {
+                    let vec = ColumnVector::new(*f.datatype(), vec![]);
+                    Arc::new(Vectors::ColumnVector(vec))
+                })
+                .collect();
+            yield RecordBatch::new(self.schema.clone(), cols)
+        }
+
         let mut counter = self.limit;
         #[for_await]
         for res in self.input.execute() {

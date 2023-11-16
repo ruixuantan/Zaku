@@ -74,6 +74,7 @@ impl DatasinkBuilder {
     }
 
     pub fn build(&self) -> Datasink {
+        let schema = self.schema.clone().expect("Schema not set");
         let mut arc_vec = vec![];
         if let Some(cols) = self.data.clone() {
             cols.iter().enumerate().for_each(|(i, col)| {
@@ -88,11 +89,13 @@ impl DatasinkBuilder {
                 );
                 arc_vec.push(Arc::new(Vectors::ColumnVector(vec)));
             })
+        } else {
+            schema.fields().iter().for_each(|f| {
+                let vec = ColumnVector::new(*f.datatype(), vec![]);
+                arc_vec.push(Arc::new(Vectors::ColumnVector(vec)));
+            })
         }
-        Datasink::new(vec![RecordBatch::new(
-            self.schema.clone().unwrap(),
-            arc_vec,
-        )])
+        Datasink::new(schema.clone(), vec![RecordBatch::new(schema, arc_vec)])
     }
 }
 

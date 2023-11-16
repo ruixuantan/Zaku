@@ -29,7 +29,7 @@ fn parse_select(query: &Query) -> Result<SelectStmt, ZakuError> {
             num.parse::<usize>()
                 .unwrap_or_else(|_| panic!("{num} should be a number")),
         )),
-        Some(_) => Err(ZakuError::new("Limit should be a number")),
+        Some(_) => Err(ZakuError::new("Limit should be a positive number")),
         _ => Ok(None),
     };
 
@@ -80,7 +80,9 @@ fn parse_aggregate_function(func: &Function) -> Result<LogicalExprs, ZakuError> 
         .map(|f| match f {
             FunctionArg::Unnamed(expr) => match expr {
                 FunctionArgExpr::Expr(e) => parse_expr(e),
-                _ => Err(ZakuError::new("Only column names are supported")),
+                _ => Err(ZakuError::new(
+                    "Only column names in aggregate functions are supported",
+                )),
             },
             FunctionArg::Named { name: _, arg: _ } => {
                 Err(ZakuError::new("Named function arguments are not supported"))
@@ -130,20 +132,26 @@ fn parse_order_by(exprs: &[OrderByExpr]) -> Result<(Vec<LogicalExprs>, Vec<bool>
     Ok((order_by_exprs, asc))
 }
 
-fn retrieve_aggregate_col_idx(aggr_expr_idx: &mut usize, expr: &LogicalExprs) -> LogicalExprs {
+fn retrieve_aggregate_col_idx(
+    group_by_size: usize,
+    expr: &LogicalExprs,
+    aggregates: &Vec<AggregateExprs>,
+) -> LogicalExprs {
     match expr {
-        LogicalExprs::AggregateExpr(_) => {
-            let col_idx_expr = LogicalExprs::ColumnIndex(*aggr_expr_idx);
-            *aggr_expr_idx += 1;
-            col_idx_expr
+        LogicalExprs::AggregateExpr(expr) => {
+            let idx = aggregates
+                .iter()
+                .position(|e| e == expr)
+                .expect("Aggregate expr should be found within aggregates");
+            LogicalExprs::ColumnIndex(idx + group_by_size)
         }
         LogicalExprs::AliasExpr(alias) => {
-            let aggr = retrieve_aggregate_col_idx(aggr_expr_idx, alias.expr());
+            let aggr = retrieve_aggregate_col_idx(group_by_size, alias.expr(), aggregates);
             LogicalExprs::AliasExpr(AliasExpr::new(aggr, alias.alias().clone()))
         }
         LogicalExprs::BinaryExpr(binary_expr) => {
-            let l = retrieve_aggregate_col_idx(aggr_expr_idx, binary_expr.get_l());
-            let r = retrieve_aggregate_col_idx(aggr_expr_idx, binary_expr.get_r());
+            let l = retrieve_aggregate_col_idx(group_by_size, binary_expr.get_l(), aggregates);
+            let r = retrieve_aggregate_col_idx(group_by_size, binary_expr.get_r(), aggregates);
             LogicalExprs::BinaryExpr(BinaryExprs::new(l, &binary_expr.get_op(), r).unwrap())
         }
 
@@ -153,30 +161,55 @@ fn retrieve_aggregate_col_idx(aggr_expr_idx: &mut usize, expr: &LogicalExprs) ->
 
 // Convert aggregate functions to column indexes for the projections
 // After a group by aggregation, the schema starts first with the group by columns
+// followed by the aggregate columns
 // As such, we need to offset the aggregate column indexes by the number of group by columns
-fn get_aggregate_projections(
+fn get_aggregate_indexes(
     group_by_size: usize,
     projections: Vec<LogicalExprs>,
-) -> Vec<LogicalExprs> {
-    let mut aggr_expr_idx = group_by_size;
-    projections
+    aggregates: &Vec<AggregateExprs>,
+) -> Result<Vec<LogicalExprs>, ZakuError> {
+    if projections.is_empty() {
+        return Err(ZakuError::new(
+            "Group by queries must have at least one projection",
+        ));
+    }
+    Ok(projections
         .iter()
-        .map(|expr| retrieve_aggregate_col_idx(&mut aggr_expr_idx, expr))
-        .collect()
+        .map(|expr| retrieve_aggregate_col_idx(group_by_size, expr, aggregates))
+        .collect())
 }
 
 fn create_df(select: &SelectStmt, dataframe: Dataframe) -> Result<Dataframe, ZakuError> {
     let mut df = dataframe;
+
+    // parse where clause
+    if let Some(selection) = select.body.selection.as_ref().map(parse_expr) {
+        if !selection?.as_aggregate().is_empty() {
+            return Err(ZakuError::new(
+                "WHERE clause cannot contain aggregate functions",
+            ));
+        }
+    }
     let selection = select.body.selection.as_ref().map(parse_expr);
     if let Some(selection) = selection {
         df = df.filter(selection?)?;
     }
 
+    // handle GROUP BY + HAVING and aggregates
     let projections = parse_projection(&select.body)?;
-    let aggregates: Vec<AggregateExprs> = projections
+    let mut aggregates: Vec<AggregateExprs> = projections
         .iter()
         .flat_map(|expr| expr.as_aggregate())
         .collect();
+    if let Some(have) = select.body.having.as_ref().map(parse_expr) {
+        let have_aggregates: Vec<AggregateExprs> = have?
+            .as_aggregate()
+            .iter()
+            .filter(|expr| !aggregates.contains(expr))
+            .cloned()
+            .collect();
+        aggregates.extend(have_aggregates);
+    }
 
     let group_by_exprs = parse_group_by(&select.body.group_by)?;
 
@@ -197,12 +230,14 @@ fn create_df(select: &SelectStmt, dataframe: Dataframe) -> Result<Dataframe, Zak
         return Ok(df);
     }
 
-    let aggr_projections = get_aggregate_projections(group_by_exprs.len(), projections);
-    df = df.aggregate(group_by_exprs, aggregates)?;
+    let group_by_size = group_by_exprs.len();
+    let aggr_projections = get_aggregate_indexes(group_by_size, projections, &aggregates)?;
+    df = df.aggregate(group_by_exprs, aggregates.clone())?;
 
     let having = select.body.having.as_ref().map(parse_expr);
     if let Some(have) = having {
-        df = df.filter(have?)?;
+        let aggr_havings = retrieve_aggregate_col_idx(group_by_size, &have?, &aggregates);
+        df = df.filter(aggr_havings)?;
     }
 
     if !select.order_by.is_empty() {

@@ -45,7 +45,7 @@ impl RecordBatchPrettifier<'_> {
                         std::cmp::max(curr_size, max_val_string.len())
                     })
                     .max()
-                    .unwrap()
+                    .unwrap_or(curr_size)
             })
             .collect()
     }
