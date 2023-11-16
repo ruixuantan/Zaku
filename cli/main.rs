@@ -1,27 +1,8 @@
 use argparse::ArgumentParser;
-use std::{io::Write, path::Path};
+use crossterm::event::{read, Event, KeyCode, KeyEvent, KeyModifiers};
+use rustyline::{error::ReadlineError, DefaultEditor};
+use std::path::Path;
 use zaku::{execute, Dataframe, ZakuError};
-
-#[derive(Debug, PartialEq)]
-pub enum Command {
-    Quit,
-    Execute(String),
-    Schema,
-}
-
-pub fn get_input() -> Result<Command, ZakuError> {
-    let mut input = String::new();
-    print!("Zaku >>> ");
-    std::io::stdout().flush()?;
-    std::io::stdin().read_line(&mut input)?;
-    input = input.trim().to_string();
-    if input.as_str() == "quit" {
-        return Ok(Command::Quit);
-    } else if input.as_str() == "schema" {
-        return Ok(Command::Schema);
-    }
-    Ok(Command::Execute(input))
-}
 
 async fn execute_sql(sql: &str, df: Dataframe) -> Result<String, ZakuError> {
     let res = execute(sql, df).await?;
@@ -36,34 +17,63 @@ async fn execute_sql(sql: &str, df: Dataframe) -> Result<String, ZakuError> {
         if i == res.num_batches() - 1 {
             break;
         }
-        print!("(Press (c) to print next rows)");
-        std::io::stdout().flush()?;
-
-        let mut input = String::new();
-        std::io::stdin().read_line(&mut input)?;
-        if input.trim() != "c" {
-            break;
+        println!("(Press (ENTER) to print next rows, any other key to stop)");
+        match read().unwrap() {
+            Event::Key(KeyEvent {
+                code: KeyCode::Enter,
+                modifiers: KeyModifiers::NONE,
+                kind: _,
+                state: _,
+            }) => (),
+            _ => break,
         }
     }
     Ok(format!("({} rows)", row_count))
 }
 
 async fn event_loop(df: Dataframe) {
+    let mut rl = match DefaultEditor::new() {
+        Ok(e) => e,
+        Err(err) => {
+            println!("Failed to initialize Zaku cli: {}", err);
+            return;
+        }
+    };
+
     loop {
-        let input = get_input();
-        match input {
-            Ok(Command::Execute(sql)) => match execute_sql(&sql, df.clone()).await {
-                Ok(res) => println!("{}\n", res),
-                Err(e) => println!("{}\n", e),
-            },
-            Ok(Command::Schema) => {
-                println!("{}\n", df.schema().to_record_batch().print(true));
+        let readline = rl.readline("Zaku >>> ");
+        match readline {
+            Ok(line) => {
+                match rl.add_history_entry(line.as_str()) {
+                    Ok(_) => (),
+                    Err(err) => {
+                        println!("Failed to add history entry: {}", err);
+                    }
+                }
+                match line.as_str() {
+                    "quit" => {
+                        println!("Exiting Zaku...");
+                        break;
+                    }
+                    "schema" => println!("{}\n", df.schema().to_record_batch().print(true)),
+                    _ => match execute_sql(&line, df.clone()).await {
+                        Ok(res) => println!("{}\n", res),
+                        Err(e) => println!("{}\n", e),
+                    },
+                }
             }
-            Ok(Command::Quit) => {
+            Err(ReadlineError::Interrupted) => {
                 println!("Exiting Zaku...");
-                std::process::exit(0);
+                break;
             }
-            Err(e) => println!("{}\n", e),
+            Err(ReadlineError::Eof) => {
+                println!("Exiting Zaku...");
+                break;
+            }
+            Err(err) => {
+                println!("Error: {:?}", err);
+                break;
+            }
         }
     }
 }
@@ -87,4 +97,5 @@ async fn main() {
         Ok(df) => event_loop(df).await,
         Err(e) => println!("Failed to load CSV file: {}", e),
     }
+    std::process::exit(0);
 }
