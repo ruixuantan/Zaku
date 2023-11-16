@@ -373,15 +373,15 @@ impl LogicalPlan for Sort {
 
     fn to_physical_plan(&self) -> Result<PhysicalPlans, ZakuError> {
         let physical_plan = self.input.to_physical_plan()?;
-        let keys = self
+        let keys: Result<Vec<PhysicalExprs>, ZakuError> = self
             .keys
             .iter()
-            .flat_map(|k| k.to_physical_expr(&self.input))
+            .map(|k| k.to_physical_expr(&self.input))
             .collect();
         Ok(PhysicalPlans::Sort(SortExec::new(
             self.schema(),
             physical_plan,
-            keys,
+            keys?,
             self.asc.clone(),
         )))
     }
