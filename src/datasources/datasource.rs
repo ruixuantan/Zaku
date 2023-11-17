@@ -1,3 +1,5 @@
+use csv::ReaderBuilder;
+
 use crate::{
     datatypes::{
         record_batch::RecordBatch,
@@ -19,9 +21,9 @@ impl Datasource {
         Datasource { path, schema, data }
     }
 
-    pub fn from_csv(path: &str) -> Result<Datasource, ZakuError> {
-        let schema = Datasource::get_csv_schema(path)?;
-        let record_batch = Datasource::load_csv_data(path, schema.clone())?;
+    pub fn from_csv(path: &str, delimiter: Option<u8>) -> Result<Datasource, ZakuError> {
+        let schema = Datasource::get_csv_schema(path, delimiter)?;
+        let record_batch = Datasource::load_csv_data(path, schema.clone(), delimiter)?;
         Ok(Datasource::new(path.to_string(), schema, record_batch))
     }
 
@@ -41,8 +43,10 @@ impl Datasource {
         Box::new(DatasourceIterator::new(&self.data.iter()))
     }
 
-    fn get_csv_schema(path: &str) -> Result<Schema, ZakuError> {
-        let mut rdr = csv::Reader::from_path(path)?;
+    fn get_csv_schema(path: &str, delimiter: Option<u8>) -> Result<Schema, ZakuError> {
+        let mut rdr = ReaderBuilder::new()
+            .delimiter(delimiter.unwrap_or(b','))
+            .from_path(path)?;
 
         let mut fields: Vec<Field> = rdr
             .headers()?
@@ -65,8 +69,14 @@ impl Datasource {
         Ok(Schema::new(fields))
     }
 
-    fn load_csv_data(path: &str, schema: Schema) -> Result<Vec<RecordBatch>, ZakuError> {
-        let mut rdr = csv::Reader::from_path(path)?;
+    fn load_csv_data(
+        path: &str,
+        schema: Schema,
+        delimiter: Option<u8>,
+    ) -> Result<Vec<RecordBatch>, ZakuError> {
+        let mut rdr = ReaderBuilder::new()
+            .delimiter(delimiter.unwrap_or(b','))
+            .from_path(path)?;
         let schema_len = schema.fields().len();
         let mut cols: Vec<Vec<Value>> = (0..schema_len).map(|_| Vec::new()).collect();
 
@@ -122,7 +132,7 @@ mod test {
 
     #[test]
     fn test_get_csv_schema() {
-        let schema = Datasource::get_csv_schema(&csv_test_file()).unwrap();
+        let schema = Datasource::get_csv_schema(&csv_test_file(), None).unwrap();
         assert_eq!(
             schema.fields(),
             &vec![
@@ -140,7 +150,8 @@ mod test {
     fn test_load_csv_data() {
         let record_batch = &Datasource::load_csv_data(
             &csv_test_file(),
-            Datasource::get_csv_schema(&csv_test_file()).unwrap(),
+            Datasource::get_csv_schema(&csv_test_file(), None).unwrap(),
+            None,
         )
         .unwrap()[0];
         assert_eq!(record_batch.row_count(), 5);

@@ -24,6 +24,17 @@ sqlparser = "0.39.0"
 thiserror = "1.0.50"
 tokio = { version = "1.34.0", features = ["full"] }
 
+[dev-dependencies]
+criterion = "0.5.1"
+
 [[bin]]
 name = "cli"
 path = "cli/main.rs"
+
+[[bench]]
+name = "tpch"
+harness = false
+
+[[test]]
+name = "test_query"
+bench = false

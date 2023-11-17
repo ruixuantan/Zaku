@@ -1,4 +1,7 @@
-use std::sync::Arc;
+use std::{
+    fmt::{Display, Formatter},
+    sync::Arc,
+};
 
 use crate::{datasources::datasource::Datasource, datatypes::schema::Schema, error::ZakuError};
 
@@ -26,8 +29,8 @@ impl Dataframe {
         &self.plan
     }
 
-    pub fn from_csv(filename: &str) -> Result<Dataframe, ZakuError> {
-        let datasource = Datasource::from_csv(filename)?;
+    pub fn from_csv(filename: &str, delimiter: Option<u8>) -> Result<Dataframe, ZakuError> {
+        let datasource = Datasource::from_csv(filename, delimiter)?;
         Ok(Dataframe::new(Arc::new(LogicalPlans::Scan(Scan::new(
             datasource,
             filename.to_string(),
@@ -71,5 +74,11 @@ impl Dataframe {
         Ok(Dataframe::new(Arc::new(LogicalPlans::Aggregate(
             Aggregate::new(self.plan.clone(), group_by, aggregates)?,
         ))))
+    }
+}
+
+impl Display for Dataframe {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.plan)
     }
 }

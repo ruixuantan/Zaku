@@ -3,3 +3,5 @@
 
 /target
 rustc-ice-*
+
+benches/lineitem.csv

@@ -5,7 +5,7 @@ use zaku::{execute, test_utils::DatasinkBuilder, Dataframe, Datasink, ZakuError}
 async fn run(sql: &str) -> Result<Datasink, ZakuError> {
     let binding = Path::new("resources").join("test.csv");
     let path = binding.to_str().expect("test.csv file should exist");
-    let df = Dataframe::from_csv(path)?;
+    let df = Dataframe::from_csv(path, None)?;
     let res = execute(sql, df).await?;
     Ok(res)
 }

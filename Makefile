@@ -19,4 +19,10 @@ run:
 fmt:
 	cargo fmt
 
+bench:
+	cargo bench
+
+clean:
+	cargo clean
+
 .PHONY: cli

@@ -81,18 +81,25 @@ async fn event_loop(df: Dataframe) {
 #[tokio::main]
 async fn main() {
     let mut path = Path::new("resources").join("test.csv");
+    let mut delimiter = ',';
     {
         let mut parser = ArgumentParser::new();
         parser.set_description("Zaku is a simple SQL query enginer on CSV files written in Rust");
         parser
             .refer(&mut path)
             .add_argument("path", argparse::Store, "Path to CSV file");
+        parser.refer(&mut delimiter).add_option(
+            &["-d", "--delimiter"],
+            argparse::Store,
+            "Delimiter used in the CSV file. Defaults to ','",
+        );
         parser.parse_args_or_exit();
     }
 
     match Dataframe::from_csv(
         path.to_str()
             .expect("File test.csv should exist in resources directory"),
+        Some(delimiter as u8),
     ) {
         Ok(df) => event_loop(df).await,
         Err(e) => println!("Failed to load CSV file: {}", e),

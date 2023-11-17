@@ -73,7 +73,7 @@ impl Value {
         match datatype {
             DataType::Number => Value::Number(
                 BigDecimal::from_str(val.replace(',', "").as_str())
-                    .unwrap_or_else(|_| panic!("Expected float, got {val}")),
+                    .unwrap_or_else(|_| panic!("Expected number, got {val}")),
             ),
             DataType::Date => Value::Date(
                 parse_iso_date_from_str(val)
