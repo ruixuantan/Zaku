@@ -1,32 +1,41 @@
+#![feature(stmt_expr_attributes)]
+#![feature(proc_macro_hygiene)]
+#![feature(coroutines)]
+
 use argparse::ArgumentParser;
 use crossterm::event::{read, Event, KeyCode, KeyEvent, KeyModifiers};
+use futures_async_stream::for_await;
 use rustyline::{error::ReadlineError, DefaultEditor};
 use std::path::Path;
 use zaku::{execute, Dataframe, ZakuError};
 
 async fn execute_sql(sql: &str, df: Dataframe) -> Result<String, ZakuError> {
-    let res = execute(sql, df).await?;
     let mut row_count = 0;
-    for (i, rb) in res.iter().enumerate() {
-        if i == 0 {
+    let res = execute(sql, df.clone()).await?;
+    let mut is_first_batch = true;
+    #[for_await]
+    for rb in res.iter() {
+        if !is_first_batch {
+            println!("(Press (ENTER) to print next rows, any other key to stop)");
+            match read().unwrap() {
+                Event::Key(KeyEvent {
+                    code: KeyCode::Enter,
+                    modifiers: KeyModifiers::NONE,
+                    kind: _,
+                    state: _,
+                }) => (),
+                _ => break,
+            }
+        }
+
+        let rb = rb?;
+        if is_first_batch {
             println!("{}", rb.print(true));
+            is_first_batch = false;
         } else {
             println!("{}", rb.print(false));
         }
         row_count += rb.row_count();
-        if i == res.num_batches() - 1 {
-            break;
-        }
-        println!("(Press (ENTER) to print next rows, any other key to stop)");
-        match read().unwrap() {
-            Event::Key(KeyEvent {
-                code: KeyCode::Enter,
-                modifiers: KeyModifiers::NONE,
-                kind: _,
-                state: _,
-            }) => (),
-            _ => break,
-        }
     }
     Ok(format!("({} rows)", row_count))
 }

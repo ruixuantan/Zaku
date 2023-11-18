@@ -3,7 +3,7 @@ use futures_async_stream::try_stream;
 use std::{collections::HashMap, fmt::Display, sync::Arc};
 
 use crate::{
-    datasources::datasource::Datasource,
+    datasources::datasource::{Datasource, Datasources},
     datatypes::{
         column_vector::{ColumnVector, Vector, Vectors},
         record_batch::RecordBatch,
@@ -76,12 +76,12 @@ impl Display for PhysicalPlans {
 
 #[derive(Clone)]
 pub struct ScanExec {
-    datasource: Datasource,
+    datasource: Datasources,
     projection: Vec<String>,
 }
 
 impl ScanExec {
-    pub fn new(datasource: Datasource, projection: Vec<String>) -> ScanExec {
+    pub fn new(datasource: Datasources, projection: Vec<String>) -> ScanExec {
         ScanExec {
             datasource,
             projection,

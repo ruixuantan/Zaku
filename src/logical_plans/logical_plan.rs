@@ -3,7 +3,7 @@ use std::{fmt::Display, sync::Arc};
 use enum_dispatch::enum_dispatch;
 
 use crate::{
-    datasources::datasource::Datasource,
+    datasources::datasource::{Datasource, Datasources},
     datatypes::schema::{Field, Schema},
     error::ZakuError,
     physical_plans::{
@@ -61,16 +61,14 @@ impl Display for LogicalPlans {
 
 #[derive(Debug, Clone)]
 pub struct Scan {
-    pub datasource: Datasource,
-    pub path: String,
+    pub datasource: Datasources,
     pub projection: Vec<String>,
 }
 
 impl Scan {
-    pub fn new(datasource: Datasource, path: String, projection: Vec<String>) -> Scan {
+    pub fn new(datasource: Datasources, projection: Vec<String>) -> Scan {
         Scan {
             datasource,
-            path,
             projection,
         }
     }
@@ -91,9 +89,13 @@ impl LogicalPlan for Scan {
 
     fn to_string(&self) -> String {
         if self.projection.is_empty() {
-            format!("Scan: {} | None", self.path)
+            format!("Scan: {} | None", self.datasource.path())
         } else {
-            format!("Scan: {} | {}", self.path, self.projection.join(", "))
+            format!(
+                "Scan: {} | {}",
+                self.datasource.path(),
+                self.projection.join(", ")
+            )
         }
     }
 

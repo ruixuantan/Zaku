@@ -1,19 +1,26 @@
 use std::path::Path;
 
-use zaku::{execute, test_utils::DatasinkBuilder, Dataframe, Datasink, ZakuError};
+use zaku::{
+    execute,
+    test_utils::{ContainerData, ContainerDataBuilder},
+    Dataframe, ZakuError,
+};
 
-async fn run(sql: &str) -> Result<Datasink, ZakuError> {
+async fn run(sql: &str) -> Result<ContainerData, ZakuError> {
     let binding = Path::new("resources").join("test.csv");
     let path = binding.to_str().expect("test.csv file should exist");
     let df = Dataframe::from_csv(path, None)?;
     let res = execute(sql, df).await?;
-    Ok(res)
+    Ok(ContainerData {
+        schema: res.schema().clone(),
+        data: res.materialize().await?,
+    })
 }
 
 #[tokio::test]
 async fn basic_query() {
     let sql = "SELECT * FROM test";
-    let expected = DatasinkBuilder::default()
+    let expected = ContainerDataBuilder::default()
         .add_schema(
             vec![
                 "id",
@@ -39,7 +46,7 @@ async fn basic_query() {
 #[tokio::test]
 async fn projection_query() {
     let sql = "SELECT id, product_name FROM test";
-    let expected = DatasinkBuilder::default()
+    let expected = ContainerDataBuilder::default()
         .add_schema(vec!["id", "product_name"], vec!["num", "text"])
         .add_data(vec![
             vec!["1", "toothbrush"],
@@ -55,7 +62,7 @@ async fn projection_query() {
 #[tokio::test]
 async fn filter_query() {
     let sql = "SELECT * FROM test WHERE price >= 10";
-    let expected = DatasinkBuilder::default()
+    let expected = ContainerDataBuilder::default()
         .add_schema(
             vec![
                 "id",
@@ -79,7 +86,7 @@ async fn filter_query() {
 #[tokio::test]
 async fn filter_no_records_query() {
     let sql = "SELECT * FROM test WHERE price < 0";
-    let expected = DatasinkBuilder::default()
+    let expected = ContainerDataBuilder::default()
         .add_schema(
             vec![
                 "id",
@@ -98,7 +105,7 @@ async fn filter_no_records_query() {
 #[tokio::test]
 async fn limit_query() {
     let sql = "SELECT * FROM test LIMIT 2";
-    let expected = DatasinkBuilder::default()
+    let expected = ContainerDataBuilder::default()
         .add_schema(
             vec![
                 "id",
@@ -121,7 +128,7 @@ async fn limit_query() {
 #[tokio::test]
 async fn limit_zero_query() {
     let sql = "SELECT * FROM test LIMIT 0";
-    let expected = DatasinkBuilder::default()
+    let expected = ContainerDataBuilder::default()
         .add_schema(
             vec![
                 "id",
@@ -140,7 +147,7 @@ async fn limit_zero_query() {
 #[tokio::test]
 async fn order_by_query() {
     let sql = "SELECT id FROM test ORDER BY id DESC";
-    let expected = DatasinkBuilder::default()
+    let expected = ContainerDataBuilder::default()
         .add_schema(vec!["id"], vec!["num"])
         .add_data(vec![vec!["5"], vec!["4"], vec!["3"], vec!["2"], vec!["1"]])
         .build();
@@ -150,7 +157,7 @@ async fn order_by_query() {
 #[tokio::test]
 async fn aggregate_query() {
     let sql = "SELECT SUM(price*2.0) AS inflation FROM test";
-    let expected = DatasinkBuilder::default()
+    let expected = ContainerDataBuilder::default()
         .add_schema(vec!["inflation"], vec!["num"])
         .add_data(vec![vec!["105"]])
         .build();
@@ -160,7 +167,7 @@ async fn aggregate_query() {
 #[tokio::test]
 async fn aggregate_group_by_query() {
     let sql = "SELECT AVG(price) * SUM(quantity) AS estimated FROM test WHERE is_available = true GROUP BY is_available";
-    let expected = DatasinkBuilder::default()
+    let expected = ContainerDataBuilder::default()
         .add_schema(vec!["estimated"], vec!["num"])
         .add_data(vec![vec!["2335.625"]])
         .build();
@@ -182,7 +189,7 @@ async fn aggregate_in_where_query() {
 #[tokio::test]
 async fn having_query() {
     let sql = "SELECT COUNT(id) AS count FROM test GROUP BY is_available HAVING COUNT(id) > 2 AND is_available = true";
-    let expected = DatasinkBuilder::default()
+    let expected = ContainerDataBuilder::default()
         .add_schema(vec!["count"], vec!["num"])
         .add_data(vec![vec!["4"]])
         .build();
@@ -193,7 +200,7 @@ async fn having_query() {
 async fn having_aggregate_query() {
     let sql =
         "SELECT COUNT(id), SUM(price) FROM test GROUP BY is_available HAVING MIN(quantity) > 0";
-    let expected = DatasinkBuilder::default()
+    let expected = ContainerDataBuilder::default()
         .add_schema(vec!["count", "sum"], vec!["num", "num"])
         .add_data(vec![vec!["4", "50.50"]])
         .build();
@@ -204,7 +211,7 @@ async fn having_aggregate_query() {
 async fn complex_query() {
     let sql =
         "SELECT id, product_name, (price*quantity) AS total FROM test WHERE quantity <> 0 LIMIT 3";
-    let expected = DatasinkBuilder::default()
+    let expected = ContainerDataBuilder::default()
         .add_schema(
             vec!["id", "product_name", "total"],
             vec!["num", "text", "num"],

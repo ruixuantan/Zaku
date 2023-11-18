@@ -1,7 +1,5 @@
 use std::{sync::Arc, vec};
 
-use futures_async_stream::for_await;
-
 use crate::{
     datasources::datasink::Datasink,
     datatypes::{
@@ -18,16 +16,10 @@ use crate::{
 async fn execute_select(df: Dataframe) -> Result<Datasink, ZakuError> {
     let plan = df.logical_plan();
     let schema = plan.schema();
-    let physical_plan = plan.to_physical_plan()?;
-    let mut data = vec![];
-    #[for_await]
-    for rb in physical_plan.execute() {
-        data.push(rb?);
-    }
-    Ok(Datasink::new(schema, data))
+    Ok(Datasink::new(schema, plan.to_physical_plan()?))
 }
 
-fn execute_explain(df: Dataframe) -> Result<Datasink, ZakuError> {
+async fn execute_explain(df: Dataframe) -> Result<Datasink, ZakuError> {
     let plan = df.logical_plan().to_physical_plan()?;
     let plan_str = format!("{}", plan);
     let col = vec![Arc::new(Vectors::ColumnVector(ColumnVector::new(
@@ -35,23 +27,16 @@ fn execute_explain(df: Dataframe) -> Result<Datasink, ZakuError> {
         vec![Value::Text(plan_str)],
     )))];
     let schema = Schema::new(vec![Field::new("Query Plan".to_string(), DataType::Text)]);
-    Ok(Datasink::new(
-        schema.clone(),
-        vec![RecordBatch::new(schema, col)],
-    ))
+    let explain_df =
+        Dataframe::from_memory(schema.clone(), vec![RecordBatch::new(schema.clone(), col)])?;
+    execute_select(explain_df).await
 }
 
 async fn execute_copy(df: Dataframe, path: &String) -> Result<Datasink, ZakuError> {
     let plan = df.logical_plan();
     let schema = plan.schema();
-    let physical_plan = plan.to_physical_plan()?;
-    let mut data = vec![];
-    #[for_await]
-    for rb in physical_plan.execute() {
-        data.push(rb?);
-    }
-    let ds = Datasink::new(schema, data);
-    let _ = ds.to_csv(path);
+    let ds = Datasink::new(schema, plan.to_physical_plan()?);
+    ds.to_csv(path).await?;
     Ok(ds)
 }
 
@@ -59,7 +44,7 @@ pub async fn execute(sql: &str, df: Dataframe) -> Result<Datasink, ZakuError> {
     let select_df = sql::parser::parse(sql, df)?;
     match select_df {
         Stmt::Select(df) => execute_select(df).await,
-        Stmt::Explain(df) => execute_explain(df),
+        Stmt::Explain(df) => execute_explain(df).await,
         Stmt::CopyTo(df, path) => execute_copy(df, &path).await,
     }
 }

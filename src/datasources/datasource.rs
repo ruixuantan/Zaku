@@ -1,4 +1,5 @@
 use csv::ReaderBuilder;
+use enum_dispatch::enum_dispatch;
 
 use crate::{
     datatypes::{
@@ -9,38 +10,62 @@ use crate::{
     error::ZakuError,
 };
 
+#[enum_dispatch]
+pub trait Datasource {
+    fn schema(&self) -> &Schema;
+    fn get_data(&self) -> &Vec<RecordBatch>;
+    fn path(&self) -> String;
+}
+
 #[derive(Debug, Clone)]
-pub struct Datasource {
+#[enum_dispatch(Datasource)]
+pub enum Datasources {
+    Mem(MemDatasource),
+    Csv(CSVDatasource),
+}
+
+#[derive(Debug, Clone)]
+pub struct MemDatasource {
+    schema: Schema,
+    data: Vec<RecordBatch>,
+}
+
+impl MemDatasource {
+    pub fn new(schema: Schema, data: Vec<RecordBatch>) -> MemDatasource {
+        MemDatasource { schema, data }
+    }
+}
+
+impl Datasource for MemDatasource {
+    fn schema(&self) -> &Schema {
+        &self.schema
+    }
+
+    fn get_data(&self) -> &Vec<RecordBatch> {
+        &self.data
+    }
+
+    fn path(&self) -> String {
+        "In memory".to_string()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct CSVDatasource {
     path: String,
     schema: Schema,
     data: Vec<RecordBatch>,
 }
 
-impl Datasource {
-    pub fn new(path: String, schema: Schema, data: Vec<RecordBatch>) -> Datasource {
-        Datasource { path, schema, data }
+impl CSVDatasource {
+    pub fn new(path: String, schema: Schema, data: Vec<RecordBatch>) -> CSVDatasource {
+        CSVDatasource { path, schema, data }
     }
 
-    pub fn from_csv(path: &str, delimiter: Option<u8>) -> Result<Datasource, ZakuError> {
-        let schema = Datasource::get_csv_schema(path, delimiter)?;
-        let record_batch = Datasource::load_csv_data(path, schema.clone(), delimiter)?;
-        Ok(Datasource::new(path.to_string(), schema, record_batch))
-    }
-
-    pub fn schema(&self) -> &Schema {
-        &self.schema
-    }
-
-    pub fn path(&self) -> &String {
-        &self.path
-    }
-
-    pub fn get_data(&self) -> &Vec<RecordBatch> {
-        &self.data
-    }
-
-    pub fn scan(&self) -> Box<dyn Iterator<Item = RecordBatch> + '_> {
-        Box::new(DatasourceIterator::new(&self.data.iter()))
+    pub fn from_csv(path: &str, delimiter: Option<u8>) -> Result<CSVDatasource, ZakuError> {
+        let schema = CSVDatasource::get_csv_schema(path, delimiter)?;
+        let record_batch = CSVDatasource::load_csv_data(path, schema.clone(), delimiter)?;
+        Ok(CSVDatasource::new(path.to_string(), schema, record_batch))
     }
 
     fn get_csv_schema(path: &str, delimiter: Option<u8>) -> Result<Schema, ZakuError> {
@@ -92,21 +117,17 @@ impl Datasource {
     }
 }
 
-pub struct DatasourceIterator<'a> {
-    data: std::slice::Iter<'a, RecordBatch>,
-}
-
-impl<'a> DatasourceIterator<'a> {
-    pub fn new(data: &std::slice::Iter<'a, RecordBatch>) -> DatasourceIterator<'a> {
-        DatasourceIterator { data: data.clone() }
+impl Datasource for CSVDatasource {
+    fn schema(&self) -> &Schema {
+        &self.schema
     }
-}
 
-impl<'a> Iterator for DatasourceIterator<'a> {
-    type Item = RecordBatch;
+    fn get_data(&self) -> &Vec<RecordBatch> {
+        &self.data
+    }
 
-    fn next(&mut self) -> Option<Self::Item> {
-        self.data.next().cloned()
+    fn path(&self) -> String {
+        self.path.clone()
     }
 }
 
@@ -120,7 +141,7 @@ mod test {
         types::{DataType, Value},
     };
 
-    use super::Datasource;
+    use super::CSVDatasource;
 
     fn csv_test_file() -> String {
         Path::new("resources")
@@ -132,7 +153,7 @@ mod test {
 
     #[test]
     fn test_get_csv_schema() {
-        let schema = Datasource::get_csv_schema(&csv_test_file(), None).unwrap();
+        let schema = CSVDatasource::get_csv_schema(&csv_test_file(), None).unwrap();
         assert_eq!(
             schema.fields(),
             &vec![
@@ -148,9 +169,9 @@ mod test {
 
     #[test]
     fn test_load_csv_data() {
-        let record_batch = &Datasource::load_csv_data(
+        let record_batch = &CSVDatasource::load_csv_data(
             &csv_test_file(),
-            Datasource::get_csv_schema(&csv_test_file(), None).unwrap(),
+            CSVDatasource::get_csv_schema(&csv_test_file(), None).unwrap(),
             None,
         )
         .unwrap()[0];

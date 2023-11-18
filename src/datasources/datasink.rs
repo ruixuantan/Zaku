@@ -3,40 +3,48 @@ use csv::Writer;
 use crate::{
     datatypes::{column_vector::Vector, record_batch::RecordBatch, schema::Schema},
     error::ZakuError,
+    physical_plans::physical_plan::PhysicalPlans,
 };
+use futures_async_stream::{for_await, try_stream};
 
-#[derive(Debug, Clone, PartialEq)]
 pub struct Datasink {
     schema: Schema,
-    data: Vec<RecordBatch>,
+    input: PhysicalPlans,
 }
 
 impl Datasink {
-    pub fn new(schema: Schema, data: Vec<RecordBatch>) -> Datasink {
-        Datasink { schema, data }
+    pub fn new(schema: Schema, input: PhysicalPlans) -> Datasink {
+        Datasink { schema, input }
     }
 
-    pub fn num_batches(&self) -> usize {
-        self.data.len()
+    pub async fn materialize(&self) -> Result<Vec<RecordBatch>, ZakuError> {
+        let mut data = vec![];
+        #[for_await]
+        for rb in self.input.execute() {
+            data.push(rb?);
+        }
+        Ok(data)
     }
 
     pub fn schema(&self) -> &Schema {
         &self.schema
     }
 
-    pub fn data(&self) -> &Vec<RecordBatch> {
-        &self.data
+    #[try_stream(ok = RecordBatch, error = ZakuError)]
+    pub async fn iter(&self) {
+        #[for_await]
+        for rb in self.input.execute() {
+            yield rb?
+        }
     }
 
-    pub fn iter(&self) -> DatasinkIterator {
-        DatasinkIterator { ds: self, index: 0 }
-    }
-
-    pub fn to_csv(&self, path: &String) -> Result<(), ZakuError> {
+    pub async fn to_csv(&self, path: &String) -> Result<(), ZakuError> {
         let mut file = Writer::from_path(path)?;
         file.write_record(self.schema.as_header())?;
 
-        for rb in &self.data {
+        #[for_await]
+        for res in self.input.execute() {
+            let rb = res?;
             (0..rb.row_count()).for_each(|i| {
                 let row = rb
                     .iter()
@@ -48,24 +56,5 @@ impl Datasink {
         }
 
         Ok(())
-    }
-}
-
-pub struct DatasinkIterator<'a> {
-    ds: &'a Datasink,
-    index: usize,
-}
-
-impl<'a> Iterator for DatasinkIterator<'a> {
-    type Item = &'a RecordBatch;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.index >= self.ds.data.len() {
-            None
-        } else {
-            let rb = &self.ds.data[self.index];
-            self.index += 1;
-            Some(rb)
-        }
     }
 }

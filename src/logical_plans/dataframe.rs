@@ -3,7 +3,11 @@ use std::{
     sync::Arc,
 };
 
-use crate::{datasources::datasource::Datasource, datatypes::schema::Schema, error::ZakuError};
+use crate::{
+    datasources::datasource::{CSVDatasource, Datasources, MemDatasource},
+    datatypes::{record_batch::RecordBatch, schema::Schema},
+    error::ZakuError,
+};
 
 use super::{
     aggregate_expr::AggregateExprs,
@@ -29,11 +33,18 @@ impl Dataframe {
         &self.plan
     }
 
-    pub fn from_csv(filename: &str, delimiter: Option<u8>) -> Result<Dataframe, ZakuError> {
-        let datasource = Datasource::from_csv(filename, delimiter)?;
+    pub fn from_memory(schema: Schema, data: Vec<RecordBatch>) -> Result<Dataframe, ZakuError> {
+        let datasource = Datasources::Mem(MemDatasource::new(schema, data));
         Ok(Dataframe::new(Arc::new(LogicalPlans::Scan(Scan::new(
             datasource,
-            filename.to_string(),
+            Vec::new(),
+        )))))
+    }
+
+    pub fn from_csv(filename: &str, delimiter: Option<u8>) -> Result<Dataframe, ZakuError> {
+        let datasource = Datasources::Csv(CSVDatasource::from_csv(filename, delimiter)?);
+        Ok(Dataframe::new(Arc::new(LogicalPlans::Scan(Scan::new(
+            datasource,
             Vec::new(),
         )))))
     }

@@ -1,23 +1,26 @@
 use std::sync::Arc;
 
-use crate::{
-    datatypes::{
-        column_vector::{ColumnVector, Vectors},
-        record_batch::RecordBatch,
-        schema::{Field, Schema},
-        types::{DataType, Value},
-    },
-    Datasink,
+use crate::datatypes::{
+    column_vector::{ColumnVector, Vectors},
+    record_batch::RecordBatch,
+    schema::{Field, Schema},
+    types::{DataType, Value},
 };
 
-pub struct DatasinkBuilder {
+#[derive(Debug, Clone, PartialEq)]
+pub struct ContainerData {
+    pub schema: Schema,
+    pub data: Vec<RecordBatch>,
+}
+
+pub struct ContainerDataBuilder {
     schema: Option<Schema>,
     data: Option<Vec<Vec<Value>>>,
 }
 
-impl DatasinkBuilder {
-    pub fn new(schema: Option<Schema>, data: Option<Vec<Vec<Value>>>) -> DatasinkBuilder {
-        DatasinkBuilder { schema, data }
+impl ContainerDataBuilder {
+    pub fn new(schema: Option<Schema>, data: Option<Vec<Vec<Value>>>) -> ContainerDataBuilder {
+        ContainerDataBuilder { schema, data }
     }
 
     fn get_datatype_from_str(str_val: &str) -> DataType {
@@ -30,10 +33,14 @@ impl DatasinkBuilder {
         }
     }
 
-    pub fn add_schema(mut self, col_names: Vec<&str>, datatypes: Vec<&str>) -> DatasinkBuilder {
+    pub fn add_schema(
+        mut self,
+        col_names: Vec<&str>,
+        datatypes: Vec<&str>,
+    ) -> ContainerDataBuilder {
         let datatypes = datatypes
             .iter()
-            .map(|d| DatasinkBuilder::get_datatype_from_str(d))
+            .map(|d| ContainerDataBuilder::get_datatype_from_str(d))
             .collect::<Vec<DataType>>();
         let fields = col_names
             .iter()
@@ -48,7 +55,7 @@ impl DatasinkBuilder {
     }
 
     // data is row-based
-    pub fn add_data(mut self, data: Vec<Vec<&str>>) -> DatasinkBuilder {
+    pub fn add_data(mut self, data: Vec<Vec<&str>>) -> ContainerDataBuilder {
         let mut cols = vec![];
         let datatypes = self
             .schema
@@ -73,7 +80,7 @@ impl DatasinkBuilder {
         self
     }
 
-    pub fn build(&self) -> Datasink {
+    pub fn build(&self) -> ContainerData {
         let schema = self.schema.clone().expect("Schema not set");
         let mut arc_vec = vec![];
         if let Some(cols) = self.data.clone() {
@@ -95,11 +102,14 @@ impl DatasinkBuilder {
                 arc_vec.push(Arc::new(Vectors::ColumnVector(vec)));
             })
         }
-        Datasink::new(schema.clone(), vec![RecordBatch::new(schema, arc_vec)])
+        ContainerData {
+            schema: schema.clone(),
+            data: vec![RecordBatch::new(schema, arc_vec)],
+        }
     }
 }
 
-impl Default for DatasinkBuilder {
+impl Default for ContainerDataBuilder {
     fn default() -> Self {
         Self::new(None, None)
     }
