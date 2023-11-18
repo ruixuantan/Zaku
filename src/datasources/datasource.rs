@@ -3,7 +3,7 @@ use enum_dispatch::enum_dispatch;
 
 use crate::{
     datatypes::{
-        record_batch::RecordBatch,
+        record_batch::{RecordBatch, BATCH_SIZE},
         schema::{Field, Schema},
         types::{DataType, Value},
     },
@@ -81,7 +81,7 @@ impl CSVDatasource {
 
         let mut datatypes: Vec<Option<DataType>> = fields.iter().map(|_| None).collect();
 
-        for record in rdr.records() {
+        for (i, record) in rdr.records().enumerate() {
             let r = record?;
             r.iter().enumerate().for_each(|(i, field)| {
                 if !field.is_empty() && datatypes[i] != Some(DataType::Text) {
@@ -90,6 +90,9 @@ impl CSVDatasource {
                     datatypes[i] = Some(datatype);
                 }
             });
+            if i == BATCH_SIZE {
+                break;
+            }
         }
         Ok(Schema::new(fields))
     }

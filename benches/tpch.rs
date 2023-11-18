@@ -14,7 +14,7 @@ fn load_csv(c: &mut Criterion) {
     });
 }
 
-fn tpch1_execute(df: Dataframe) {
+async fn tpch1_execute_and_materialize(df: Dataframe) {
     let sql = "
     select
         l_returnflag,
@@ -38,12 +38,12 @@ fn tpch1_execute(df: Dataframe) {
         l_returnflag,
         l_linestatus;
     ";
-    let _ = tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .worker_threads(NUM_THREADS)
-        .build()
+    zaku::execute(sql, df)
+        .await
         .unwrap()
-        .block_on(zaku::execute(sql, df));
+        .materialize()
+        .await
+        .unwrap();
 }
 
 fn tpch1(c: &mut Criterion) {
@@ -52,7 +52,14 @@ fn tpch1(c: &mut Criterion) {
 
     group.sample_size(SAMPLE_SIZE);
     group.bench_function("tpch1", |b| {
-        b.iter(|| tpch1_execute(df.clone()));
+        b.iter(|| {
+            tokio::runtime::Builder::new_multi_thread()
+                .enable_all()
+                .worker_threads(NUM_THREADS)
+                .build()
+                .unwrap()
+                .block_on(tpch1_execute_and_materialize(df.clone()))
+        });
     });
 }
 
