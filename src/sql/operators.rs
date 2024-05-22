@@ -1,12 +1,4 @@
-use sqlparser::ast::BinaryOperator;
-
-use crate::error::ZakuError;
-
 pub trait BinaryOp {
-    fn from_sql_parser(op: &BinaryOperator) -> Result<Self, ZakuError>
-    where
-        Self: Sized;
-
     fn name(&self) -> String;
 
     fn to_string(&self) -> String;
@@ -25,20 +17,6 @@ pub enum BooleanOp {
 }
 
 impl BinaryOp for BooleanOp {
-    fn from_sql_parser(op: &BinaryOperator) -> Result<BooleanOp, ZakuError> {
-        match op {
-            BinaryOperator::And => Ok(BooleanOp::And),
-            BinaryOperator::Or => Ok(BooleanOp::Or),
-            BinaryOperator::Eq => Ok(BooleanOp::Eq),
-            BinaryOperator::NotEq => Ok(BooleanOp::Neq),
-            BinaryOperator::Gt => Ok(BooleanOp::Gt),
-            BinaryOperator::GtEq => Ok(BooleanOp::Gte),
-            BinaryOperator::Lt => Ok(BooleanOp::Lt),
-            BinaryOperator::LtEq => Ok(BooleanOp::Lte),
-            _ => Err(ZakuError::new("Invalid boolean operator")),
-        }
-    }
-
     fn name(&self) -> String {
         match self {
             BooleanOp::And => "and".to_string(),
@@ -76,17 +54,6 @@ pub enum MathOp {
 }
 
 impl BinaryOp for MathOp {
-    fn from_sql_parser(op: &BinaryOperator) -> Result<MathOp, ZakuError> {
-        match op {
-            BinaryOperator::Plus => Ok(MathOp::Add),
-            BinaryOperator::Minus => Ok(MathOp::Sub),
-            BinaryOperator::Multiply => Ok(MathOp::Mul),
-            BinaryOperator::Divide => Ok(MathOp::Div),
-            BinaryOperator::Modulo => Ok(MathOp::Mod),
-            _ => Err(ZakuError::new("Invalid math operator")),
-        }
-    }
-
     fn name(&self) -> String {
         match self {
             MathOp::Add => "add".to_string(),
